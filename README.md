@@ -13,19 +13,19 @@ Click a module below to open its notebook in Colab, then run the first two cells
 | Module | Open in Colab |
 |---|---|
 | 0 | [Set up and ship something tiny](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/00-set-up-and-ship-something-tiny.ipynb) |
-| 1 | [How ml actually works](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/01-how-ml-actually-works.ipynb) |
-| 2 | [Classic models and when to use them](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/02-classic-models-and-when-to-use-them.ipynb) |
-| 3 | [Data the real job](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/03-data-the-real-job.ipynb) |
+| 1 | [How ML actually works](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/01-how-ml-actually-works.ipynb) |
+| 2 | [Classic models, and when to use them](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/02-classic-models-and-when-to-use-them.ipynb) |
+| 3 | [Data: the real job](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/03-data-the-real-job.ipynb) |
 | 4 | [Evaluation and metrics](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/04-evaluation-and-metrics.ipynb) |
-| 5 | [Neural networks by intuition](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/05-neural-networks-by-intuition.ipynb) |
-| 6 | [How llms actually work](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/06-how-llms-actually-work.ipynb) |
+| 5 | [Neural networks, by intuition](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/05-neural-networks-by-intuition.ipynb) |
+| 6 | [How LLMs actually work](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/06-how-llms-actually-work.ipynb) |
 | 7 | [Prompt and context engineering](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/07-prompt-and-context-engineering.ipynb) |
-| 8 | [Rag grounded cited answers](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/08-rag-grounded-cited-answers.ipynb) |
+| 8 | [RAG: grounded, cited answers](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/08-rag-grounded-cited-answers.ipynb) |
 | 9 | [Tools and agents](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/09-tools-and-agents.ipynb) |
 | 10 | [Evals and reliability](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/10-evals-and-reliability.ipynb) |
-| 11 | [Fine tune vs rag vs prompt](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/11-fine-tune-vs-rag-vs-prompt.ipynb) |
-| 12 | [Applied ai for go to market](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/12-applied-ai-for-go-to-market.ipynb) |
-| 13 | [Ai engineering and deployment](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/13-ai-engineering-and-deployment.ipynb) |
+| 11 | [Fine-tune vs. RAG vs. prompt](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/11-fine-tune-vs-rag-vs-prompt.ipynb) |
+| 12 | [Applied AI for go-to-market](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/12-applied-ai-for-go-to-market.ipynb) |
+| 13 | [AI engineering and deployment](https://colab.research.google.com/github/Go-Everyway/ai-track-starter/blob/main/notebooks/13-ai-engineering-and-deployment.ipynb) |
 
 Modules 1 to 4 need no model at all, and everything else runs in mock mode (below), so the whole course works in Colab for free. When you want real model calls, add `LLM_API_KEY`, `LLM_MODEL` and `EMBED_MODEL` in Colab's **Secrets** panel (the key icon) and turn on notebook access. The first cell copies them into the environment. Don't paste a key into a cell.
 
