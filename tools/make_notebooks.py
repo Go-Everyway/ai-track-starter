@@ -10,7 +10,8 @@ Cells are separated by `# %%` lines; `# %% [markdown]` starts a markdown cell wh
 are written as `# text`. Every built notebook gets the same title, Colab and setup cells
 first. A module with no source yet gets a short scaffold that just loads its data.
 
-    python tools/make_notebooks.py
+    python tools/make_notebooks.py          # all modules
+    python tools/make_notebooks.py 02 03    # just these
 """
 
 import json
@@ -121,9 +122,11 @@ SOLUTION_INTRO = ("The worked solution. Try the build in `notebooks/` first; get
                   "than reading this. The last cells check every done-when criterion.")
 
 
-def main():
+def main(only=()):
     built = 0
     for num, title, starter in MODULES:
+        if only and num not in only:
+            continue
         slug = slug_for(num, title)
         for kind, intro in [("notebooks", LEARNER_INTRO), ("solutions", SOLUTION_INTRO)]:
             src = ROOT / kind / "src" / f"{slug}.py"
@@ -141,4 +144,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    main(tuple(sys.argv[1:]))
