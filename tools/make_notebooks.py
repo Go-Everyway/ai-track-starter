@@ -11,8 +11,8 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-# TODO(matt): set once the public repo exists. Colab clones from here.
-REPO_URL = "https://github.com/OWNER/ai-track-starter"
+# Colab clones from here.
+REPO_URL = "https://github.com/Go-Everyway/ai-track-starter"
 
 MODULES = [
     ("00", "Set up and ship something tiny", "from lib import llm\nreply = llm.chat('Say hello in five words.')\nprint(reply.text)\nprint(reply.input_tokens, reply.output_tokens, reply.cost_usd)"),
