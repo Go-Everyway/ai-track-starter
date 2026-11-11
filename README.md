@@ -66,7 +66,7 @@ Every call is logged to `logs/llm_calls.jsonl` with tokens, cost and latency, so
 | Modules | Model calls | Expected spend |
 |---|---|---|
 | 1 to 4 | None. Classic ML on your laptop. | $0 |
-| 5 | Embeds 400 company descriptions, about 25,000 tokens in total (measured from `data/companies.jsonl`). | Cents with a typical embedding model. Check your model's price per million tokens. |
+| 5 | Embeds 400 company descriptions once: 19,623 tokens with the `o200k_base` tokenizer (Module 6 measures it). Your embedding model's own tokenizer will give a similar count. | That count times your embedding model's price per million tokens. Cached, so you pay once. |
 | 0, 6 to 13 | Planned per module; the exact number lands with each module. | Stated on each module page. |
 
 The free route through the whole course is mock mode plus Modules 1 to 5 for real.
@@ -81,8 +81,11 @@ The free route through the whole course is mock mode plus Modules 1 to 5 for rea
 | `data/docs/` | Tallyhawk's (fictional) knowledge base: 24 short documents. |
 | `data/questions.jsonl` | 54 questions about those documents, each with the passage that answers it, for scoring retrieval. |
 | `lib/llm.py` | The provider-neutral client: `chat()`, `embed()`, `cosine()`, cost logging and the daily budget. |
+| `lib/outreach.py` | Module 7's outreach-angle step: the prompt versions, the schema, validation with one retry, and the injection guard. |
+| `lib/rag.py` | Module 8's retrieval: chunking, keyword/vector/hybrid search, citations limited to retrieved passages, `supports()` for checking claims, recall@k and MRR. |
+| `lib/evals.py` | Test suites and the runner. Modules 7 to 9 add suites in `evals/`; Module 10 turns them into a harness. |
 | `notebooks/` | One notebook per module. |
-| `evals/` | The test sets and harness that grow from Module 7. |
+| `evals/` | The test suites (`m07_outreach_angle.jsonl`, `m08_rag.jsonl`, …) that grow from Module 7. |
 | `solutions/` | Worked solutions, added as modules are published. |
 | `deploy/` | Module 0's serverless function (Flask on Vercel's Python runtime) and its local test. |
 | `tools/` | `generate_data.py` rebuilds `data/` from the seed; `make_notebooks.py` builds the notebooks from `notebooks/src` and `solutions/src`; `run_notebooks.py` runs them all headless. |
