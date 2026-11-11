@@ -86,6 +86,8 @@ The free route through the whole course is mock mode plus Modules 1 to 5 for rea
 | `lib/pipeline.py` | Module 9's pipeline: enrich (a tool call), score, draft, verify claims, then an approval gate and idempotent sends. |
 | `lib/evals.py` | Test suites and the runner. Modules 7 to 9 add suites in `evals/`. |
 | `lib/grader.py`, `lib/harness.py` | Module 10: a code grader and a model grader with agreement against human labels, and the gate that blocks a send when checks fail. |
+| `lib/campaign.py` | Module 12: signal-to-offer map, seeded holdout assignment, the before number, suppression and opt-out, SPF/DKIM/DMARC record checks, and treatment-vs-holdout results with a range. |
+| `lib/ops.py` | Module 13: retries with backoff and jitter, timeouts, rate limiting, pinned models with a fallback, PII redaction, cost caps, a daily dashboard, alerts, and a deploy that refuses to run when the eval suites fail. |
 | `notebooks/` | One notebook per module. |
 | `evals/` | The suites from Modules 7 to 9, `evals/run.py` (the harness), and `labels/`: 40 outreach outputs labelled by hand for grader validation, written for the course. |
 | `solutions/` | Worked solutions, added as modules are published. |
