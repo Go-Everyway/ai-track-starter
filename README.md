@@ -83,9 +83,11 @@ The free route through the whole course is mock mode plus Modules 1 to 5 for rea
 | `lib/llm.py` | The provider-neutral client: `chat()`, `embed()`, `cosine()`, cost logging and the daily budget. |
 | `lib/outreach.py` | Module 7's outreach-angle step: the prompt versions, the schema, validation with one retry, and the injection guard. |
 | `lib/rag.py` | Module 8's retrieval: chunking, keyword/vector/hybrid search, citations limited to retrieved passages, `supports()` for checking claims, recall@k and MRR. |
-| `lib/evals.py` | Test suites and the runner. Modules 7 to 9 add suites in `evals/`; Module 10 turns them into a harness. |
+| `lib/pipeline.py` | Module 9's pipeline: enrich (a tool call), score, draft, verify claims, then an approval gate and idempotent sends. |
+| `lib/evals.py` | Test suites and the runner. Modules 7 to 9 add suites in `evals/`. |
+| `lib/grader.py`, `lib/harness.py` | Module 10: a code grader and a model grader with agreement against human labels, and the gate that blocks a send when checks fail. |
 | `notebooks/` | One notebook per module. |
-| `evals/` | The test suites (`m07_outreach_angle.jsonl`, `m08_rag.jsonl`, …) that grow from Module 7. |
+| `evals/` | The suites from Modules 7 to 9, `evals/run.py` (the harness), and `labels/`: 40 outreach outputs labelled by hand for grader validation, written for the course. |
 | `solutions/` | Worked solutions, added as modules are published. |
 | `deploy/` | Module 0's serverless function (Flask on Vercel's Python runtime) and its local test. |
 | `tools/` | `generate_data.py` rebuilds `data/` from the seed; `make_notebooks.py` builds the notebooks from `notebooks/src` and `solutions/src`; `run_notebooks.py` runs them all headless. |
@@ -107,6 +109,7 @@ The generator uses only Python's standard library, so the files are byte-identic
 python -m unittest discover tests        # lib/llm.py, no network needed
 python tools/run_notebooks.py            # every notebook and solution, in mock mode
 python deploy/test_app.py                # Module 0's function, no network needed
+python evals/run.py                      # every eval suite; exits 1 if any is under its threshold
 ```
 
 ## Licence and errors
