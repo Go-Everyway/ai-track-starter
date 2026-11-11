@@ -1,0 +1,116 @@
+{
+  "accuracy_nobody_converts": 0.937,
+  "base_rate": 0.063,
+  "best_c": 0.01,
+  "bootstrap_p50": {
+    "model": {
+      "5th pct": 0.14,
+      "95th pct": 0.34,
+      "median": 0.24
+    },
+    "model minus rules": {
+      "5th pct": -0.1,
+      "95th pct": 0.1,
+      "median": 0.0
+    },
+    "rules": {
+      "5th pct": 0.14,
+      "95th pct": 0.34,
+      "median": 0.24
+    }
+  },
+  "calibration_highest_actual": 0.17,
+  "calibration_highest_pred": 0.1634,
+  "calibration_lowest_actual": 0.01,
+  "calibration_lowest_pred": 0.016238,
+  "lift": {
+    "lift model": {
+      "precision@100": 3.492,
+      "precision@25": 5.714,
+      "precision@50": 3.492
+    },
+    "lift random": {
+      "precision@100": 1.111,
+      "precision@25": 1.27,
+      "precision@50": 1.587
+    },
+    "lift rules": {
+      "precision@100": 3.81,
+      "precision@25": 3.81,
+      "precision@50": 3.81
+    }
+  },
+  "meetings_per_week": {
+    "model": 8.55,
+    "random": 5.25,
+    "rules": 9.1
+  },
+  "precision_at_k": {
+    "model": {
+      "precision@100": 0.22,
+      "precision@25": 0.36,
+      "precision@50": 0.22
+    },
+    "random": {
+      "precision@100": 0.07,
+      "precision@25": 0.08,
+      "precision@50": 0.1
+    },
+    "rules": {
+      "precision@100": 0.24,
+      "precision@25": 0.24,
+      "precision@50": 0.24
+    }
+  },
+  "splits_model_ahead": 8,
+  "splits_model_mean": 0.31,
+  "splits_rules_mean": 0.242,
+  "test_converted": 63,
+  "test_leads": 1000,
+  "thresholds": [
+    {
+      "cutoff": 0.05,
+      "flagged": 396,
+      "precision": 0.1111,
+      "recall": 0.6984
+    },
+    {
+      "cutoff": 0.1,
+      "flagged": 153,
+      "precision": 0.1961,
+      "recall": 0.4762
+    },
+    {
+      "cutoff": 0.2,
+      "flagged": 47,
+      "precision": 0.234,
+      "recall": 0.1746
+    },
+    {
+      "cutoff": 0.3,
+      "flagged": 16,
+      "precision": 0.25,
+      "recall": 0.0635
+    },
+    {
+      "cutoff": 0.5,
+      "flagged": 0,
+      "precision": null,
+      "recall": 0.0
+    }
+  ],
+  "top50_accuracy": 0.909,
+  "top50_f1": 0.19469,
+  "top50_fn": 52,
+  "top50_fp": 39,
+  "top50_precision": 0.22,
+  "top50_recall": 0.174603,
+  "top50_tn": 898,
+  "top50_tp": 11,
+  "validation_average_precision": {
+    "0.01": 0.267138,
+    "0.1": 0.25473,
+    "1.0": 0.251612,
+    "10.0": 0.251355
+  }
+}

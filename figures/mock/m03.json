@@ -1,0 +1,40 @@
+{
+  "catch_rate_alone": {
+    "email_clicks": 0.123,
+    "email_opens": 0.0873,
+    "employees": 0.1071,
+    "hiring_ops_roles": 0.131,
+    "meetings_held": 0.9643,
+    "pages_viewed": 0.2262,
+    "pricing_page_visits": 0.2698,
+    "recent_funding": 0.0992,
+    "webinar_attended": 0.0714
+  },
+  "contacts_straddling_split": 33,
+  "converted": 252,
+  "extra_duplicate_rows": 120,
+  "impossible_employee_counts": 3,
+  "negative_page_counts": 2,
+  "not_converted": 3748,
+  "raw_blanks": {
+    "country": 143,
+    "employees": 312,
+    "erp_type": 244,
+    "industry": 202,
+    "pages_viewed": 186
+  },
+  "raw_country_spellings": 19,
+  "raw_employee_commas": 13,
+  "raw_employee_ranges": 196,
+  "raw_industry_spellings": 41,
+  "raw_rows": 4120,
+  "raw_rows_with_any_blank": 997,
+  "raw_source_spellings": 23,
+  "rows_after_dedupe": 4000,
+  "score_with_leak": 0.984127,
+  "score_without_leak": 0.333333,
+  "two_plus_meetings_converted": 230,
+  "two_plus_meetings_leads": 230,
+  "zero_meetings_converted": 0,
+  "zero_meetings_leads": 3492
+}

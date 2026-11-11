@@ -1,0 +1,83 @@
+{
+  "alert_threshold_cost": 10.0,
+  "alert_threshold_error_rate": 0.1,
+  "alerts": 3,
+  "backoff_waits_seed1": [
+    0.07,
+    0.85,
+    1.53,
+    1.02
+  ],
+  "broken_deploy_blocked": true,
+  "cap_rep1_allowed": false,
+  "cap_rep1_spent": 2.05,
+  "cap_rep2_allowed": true,
+  "cost_cap_per_day": 10.0,
+  "cost_cap_per_user": 2.0,
+  "deployed": [
+    "v3"
+  ],
+  "fallback_switches": 15,
+  "leads_through_pipeline": 5,
+  "models_that_answered": [
+    "fallback-model"
+  ],
+  "retryable": {
+    "400 bad request": false,
+    "401 bad key": false,
+    "429 rate limited": true,
+    "429 spend cap reached": false,
+    "500 server error": true,
+    "529 overloaded": true,
+    "timeout": true
+  },
+  "slow_call_answered_by": "fallback-model",
+  "slow_primary_s": 1.0,
+  "synthetic_dashboard": {
+    "2026-11-04": {
+      "calls": 200,
+      "cost_usd": 5.94,
+      "error_rate": 0.01,
+      "errors": 2
+    },
+    "2026-11-05": {
+      "calls": 200,
+      "cost_usd": 5.79,
+      "error_rate": 0.035,
+      "errors": 7
+    },
+    "2026-11-06": {
+      "calls": 200,
+      "cost_usd": 5.79,
+      "error_rate": 0.035,
+      "errors": 7
+    },
+    "2026-11-07": {
+      "calls": 200,
+      "cost_usd": 5.88,
+      "error_rate": 0.02,
+      "errors": 4
+    },
+    "2026-11-08": {
+      "calls": 200,
+      "cost_usd": 5.91,
+      "error_rate": 0.015,
+      "errors": 3
+    },
+    "2026-11-09": {
+      "calls": 200,
+      "cost_usd": 4.74,
+      "error_rate": 0.21,
+      "errors": 42
+    },
+    "2026-11-10": {
+      "calls": 200,
+      "cost_usd": 13.79,
+      "error_rate": 0.015,
+      "errors": 3
+    }
+  },
+  "timeout_s": 0.2,
+  "today_calls": 60,
+  "today_errors": 45
+}

@@ -10,6 +10,21 @@ print(f"{len(leads):,} leads, {leads.converted.sum()} converted ({leads.converte
 leads.head()
 
 # %% [markdown]
+# ## OPERATOR: change one value
+#
+# `OPERATOR_VALUE` is how many questions the "simple model" decision tree may ask per lead
+# (its `max_depth`). The default is 3. Try anything from 1 to 10, then choose Runtime → Run all,
+# and watch the train and test numbers in the results table. A small number means a few broad
+# rules; a big number lets the tree memorize more.
+#
+# The done-when checks at the bottom were written for the default value, so a ✗ there after
+# you change it is expected, not a mistake.
+
+# %%
+OPERATOR_VALUE = 3  # simple model's max_depth, 1 to 10. Change this, then Runtime → Run all
+DEFAULT_VALUE = 3
+
+# %% [markdown]
 # ## 2. Hold some data back
 #
 # Split once, before anything else, and don't touch the test set until you're measuring.
@@ -69,8 +84,8 @@ print(f"rules: train {rules_train:.1%}  test {rules_test:.1%}")
 # ## 5. Let a model find the rules
 #
 # A decision tree learns rules like yours, but from the training data instead of from your
-# head. `max_depth=3` allows at most three questions per lead. Print the tree and read the
-# rules it found.
+# head. `max_depth=OPERATOR_VALUE` (3 by default) caps how many questions it asks per lead.
+# Print the tree and read the rules it found.
 
 # %%
 from sklearn.tree import DecisionTreeClassifier, export_text
@@ -82,11 +97,13 @@ FEATURES = ["industry", "employees", "country", "lead_source", "seniority", "job
 X_train = pd.get_dummies(train[FEATURES], dtype=float)
 X_test = pd.get_dummies(test[FEATURES], dtype=float).reindex(columns=X_train.columns, fill_value=0)
 
-simple = DecisionTreeClassifier(max_depth=3, random_state=0).fit(X_train, train.converted)
+simple = DecisionTreeClassifier(max_depth=OPERATOR_VALUE, random_state=0).fit(X_train, train.converted)
 simple_train = catch_rate(simple.predict_proba(X_train)[:, 1], train.converted)
 simple_test = catch_rate(simple.predict_proba(X_test)[:, 1], test.converted)
 print(f"simple model: train {simple_train:.1%}  test {simple_test:.1%}\n")
-print(export_text(simple, feature_names=list(X_train.columns), show_weights=True))
+print(f"the tree has {simple.get_n_leaves()} leaves")
+if OPERATOR_VALUE <= 4:  # deeper trees are too long to read
+    print(export_text(simple, feature_names=list(X_train.columns), show_weights=True))
 
 # %% [markdown]
 # ## 6. Overfit on purpose
@@ -107,7 +124,7 @@ print(f"it grew {overfit.get_n_leaves():,} leaves to sort {len(train):,} trainin
 # %%
 results = pd.DataFrame(
     {"train": [rules_train, simple_train, overfit_train], "test": [rules_test, simple_test, overfit_test]},
-    index=["hand-written rules", "simple model (depth 3)", "overfit model"],
+    index=["hand-written rules", f"simple model (depth {OPERATOR_VALUE})", "overfit model"],
 )
 results["gap"] = results.train - results.test
 results.round(3)
@@ -127,11 +144,24 @@ collapsed.
 # %%
 from lib.checks import done_when
 
-assert done_when([
+checks = [
     ("Train and test numbers for all three approaches",
-     set(results.index) == {"hand-written rules", "simple model (depth 3)", "overfit model"} and results.notna().all().all()),
+     len(results) == 3 and results.notna().all().all()),
     ("The overfit model looks perfect on training data", results.loc["overfit model", "train"] >= 0.99),
     ("Your rules beat random on the test set (about 10%)", results.loc["hand-written rules", "test"] > 0.15),
     ("The overfit model has the biggest train-to-test gap", results.gap.idxmax() == "overfit model"),
     ("You explained the gap in a couple of sentences", len(why_the_gap.split()) >= 20),
-])
+]
+if OPERATOR_VALUE == DEFAULT_VALUE:
+    assert done_when(checks)
+    from lib.figures import record
+    record("m01",
+           leads=len(leads), converted=int(leads.converted.sum()), conversion_rate=leads.converted.mean(),
+           train_leads=len(train), train_converted=int(train.converted.sum()),
+           test_leads=len(test), test_converted=int(test.converted.sum()),
+           rules_train=rules_train, rules_test=rules_test,
+           simple_train=simple_train, simple_test=simple_test,
+           overfit_train=overfit_train, overfit_test=overfit_test, overfit_leaves=int(overfit.get_n_leaves()),
+           random_test=catch_rate(np.zeros(len(test)), test.converted))
+else:
+    _ = done_when(checks)

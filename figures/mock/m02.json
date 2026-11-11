@@ -1,0 +1,47 @@
+{
+  "boost_fair_test": 0.301587,
+  "boost_fair_train": 0.566138,
+  "boost_leak_test": 0.984127,
+  "boost_leak_train": 1.0,
+  "fair_importance": {
+    "erp_type": 0.017,
+    "industry": 0.055,
+    "job_function": 0.025,
+    "lead_source": 0.071,
+    "pages_viewed": 0.012,
+    "pricing_page_visits": 0.058,
+    "seniority": 0.017
+  },
+  "leak_importance_max_other": 0.000948,
+  "leak_importance_meetings_held": 0.890849,
+  "logreg_fair_test": 0.333333,
+  "logreg_fair_train": 0.47619,
+  "logreg_leak_test": 0.984127,
+  "logreg_leak_train": 1.0,
+  "odds_demo_request": 2.704133,
+  "odds_food_beverage": 2.261923,
+  "odds_manufacturing": 2.162661,
+  "odds_outbound": 0.382475,
+  "odds_pricing_page_source": 2.13547,
+  "odds_pricing_visits_per_sd": 1.284775,
+  "odds_wholesale": 2.623837,
+  "rules_test": 0.380952,
+  "tree_split_counts": {
+    "all": 3000,
+    "demo": 228,
+    "demo_other": 133,
+    "demo_senior": 95,
+    "no_demo": 2772,
+    "no_demo_good_fit": 1323,
+    "no_demo_other": 1449
+  },
+  "tree_split_rates": {
+    "all": 0.063,
+    "demo": 0.2105,
+    "demo_other": 0.1353,
+    "demo_senior": 0.3158,
+    "no_demo": 0.0509,
+    "no_demo_good_fit": 0.0831,
+    "no_demo_other": 0.0214
+  }
+}

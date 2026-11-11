@@ -1,0 +1,4 @@
+{
+  "deploy_max_tokens": 60,
+  "question_input_tokens": 15
+}

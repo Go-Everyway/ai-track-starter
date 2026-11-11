@@ -25,6 +25,19 @@ world = pipeline.World.load()
 print(f"{len(world.leads):,} leads loaded; mode: {llm.settings()['provider']}")
 
 # %% [markdown]
+# ## OPERATOR: change one value
+#
+# The error rate that should page someone: 0.10 means "alert when more than 10% of a day's
+# calls fail". Step 10 checks every day on the dashboard against it. Try 0.05 (twitchy) or
+# 0.5 (relaxed), run everything again, and see which days raise an alert.
+# Sensible range: 0.02 to 0.9.
+
+# %%
+OPERATOR_VALUE = 0.10  # change this, then Runtime → Run all
+OPERATOR_DEFAULT = 0.10
+assert 0.0 < OPERATOR_VALUE < 1.0, "use an error rate between 0 and 1, e.g. 0.10 for 10%"
+
+# %% [markdown]
 # ## 2. Which errors deserve a retry
 #
 # Retry what might work a second later: timeouts, dropped connections, rate limits, server
@@ -181,11 +194,12 @@ dashboard.round(3)
 # quiet day with two errors out of three calls from paging anyone.
 
 # %%
-MAX_COST_PER_DAY = 10.00   # dollars
-MAX_ERROR_RATE = 0.10      # 10% of calls
+MAX_COST_PER_DAY = 10.00          # dollars
+MAX_ERROR_RATE = OPERATOR_VALUE   # share of calls (the operator value; 0.10 = 10%)
 
 alerts = ops.check_alerts(dashboard, max_cost_per_day=MAX_COST_PER_DAY, max_error_rate=MAX_ERROR_RATE,
                           min_calls=20, path=ALERTS)
+print(f"{len(alerts)} alert(s) at an error-rate threshold of {MAX_ERROR_RATE:.0%} and a cost limit of ${MAX_COST_PER_DAY:.2f}/day:")
 for a in alerts:
     print(a)
 
@@ -225,7 +239,27 @@ file; and that redaction catches the personal data in my real traces.
 # %%
 from lib.checks import done_when
 
-assert done_when([
+if OPERATOR_VALUE == OPERATOR_DEFAULT:
+    from lib.figures import record
+    calls_today = [e for e in events if e["kind"] == "call"]
+    by_day = dashboard.reset_index().to_dict("records")
+    record("m13",
+           retryable={name: ops.is_retryable(exc) for name, exc in examples.items()},
+           backoff_waits_seed1=[round(d, 2) for d in delays],
+           leads_through_pipeline=len(results), fallback_switches=len(fallbacks),
+           models_that_answered=sorted(models_used),
+           today_calls=len(calls_today), today_errors=sum(e["outcome"] == "error" for e in calls_today),
+           timeout_s=0.2, slow_primary_s=1.0, slow_call_answered_by=reply.model,
+           cost_cap_per_user=2.00, cost_cap_per_day=10.00,
+           cap_rep1_spent=2.05, cap_rep1_allowed=caps.allow("rep-1", day="2026-11-11")[0],
+           cap_rep2_allowed=caps.allow("rep-2", day="2026-11-11")[0],
+           # The synthetic week only: today's row depends on the date you run this.
+           synthetic_dashboard={r["day"]: {k: r[k] for k in ("calls", "errors", "error_rate", "cost_usd")}
+                                for r in by_day if r["day"] in {e["ts"][:10] for e in synthetic}},
+           alert_threshold_error_rate=MAX_ERROR_RATE, alert_threshold_cost=MAX_COST_PER_DAY,
+           alerts=len(alerts), deployed=deployed, broken_deploy_blocked=blocked)
+
+checks = [
     ("The dashboard shows cost and error rate per day",
      {"cost_usd", "error_rate"} <= set(dashboard.columns) and len(dashboard) >= 2),
     ("An alert fired in a test", len(alerts) >= 1),
@@ -235,4 +269,9 @@ assert done_when([
      deployed == ["v3"] and blocked),
     ("You wrote down what still needs a real deployment to verify",
      len(needs_a_real_deployment.split()) >= 20),
-])
+]
+if OPERATOR_VALUE == OPERATOR_DEFAULT:
+    assert done_when(checks)
+else:
+    print(f"OPERATOR_VALUE is {OPERATOR_VALUE}, not the default, so these are for reading, not grading:")
+    _ = done_when(checks)

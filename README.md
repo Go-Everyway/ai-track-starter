@@ -96,6 +96,20 @@ The free route through the whole course is mock mode plus Modules 1 to 5 for rea
 
 See [`data/README.md`](data/README.md) for every column.
 
+## Real-model runs
+
+The module pages publish one real run of the Track 2 solutions (Modules 6 to 11) beside the mock
+numbers, labelled with model, date and cost. To make one yourself:
+
+```bash
+# key in .env as LLM_API_KEY, never on the command line
+python tools/real_run.py --small <cheap-model-id> --large <bigger-model-id> --embed <embedding-model-id> --budget 10
+```
+
+It asks before it spends anything, stops at the budget, and saves `runs/<date>-<model>/`: the executed
+notebooks, the figures each one recorded, per-module call logs (tokens, cost, latency; no prompts or
+replies) and `summary.json` with the total. If your key shows up in any output, it deletes the folder.
+
 ## Reproducing the data
 
 ```bash

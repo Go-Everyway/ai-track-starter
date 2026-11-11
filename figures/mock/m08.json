@@ -1,0 +1,52 @@
+{
+  "answer_mode": "keyword",
+  "chunk_overlap": 10,
+  "chunk_size": 40,
+  "chunks_paragraph": 80,
+  "chunks_window": 38,
+  "documents": 24,
+  "faithfulness_cases": 20,
+  "faithfulness_passed": 12,
+  "hybrid_after": {
+    "mrr": 0.832,
+    "recall@1": 0.722,
+    "recall@5": 0.963
+  },
+  "hybrid_before": {
+    "mrr": 0.736,
+    "recall@1": 0.667,
+    "recall@5": 0.815
+  },
+  "keyword_after": {
+    "mrr": 0.877,
+    "recall@1": 0.778,
+    "recall@5": 0.981
+  },
+  "keyword_before": {
+    "mrr": 0.793,
+    "recall@1": 0.741,
+    "recall@5": 0.852
+  },
+  "mode": "mock",
+  "paragraph_keyword_after": {
+    "mrr": 0.686,
+    "recall@1": 0.519,
+    "recall@5": 0.944
+  },
+  "paragraph_keyword_before": {
+    "mrr": 0.534,
+    "recall@1": 0.5,
+    "recall@5": 0.574
+  },
+  "questions": 54,
+  "vector_after": {
+    "mrr": 0.7,
+    "recall@1": 0.593,
+    "recall@5": 0.852
+  },
+  "vector_before": {
+    "mrr": 0.634,
+    "recall@1": 0.574,
+    "recall@5": 0.722
+  }
+}

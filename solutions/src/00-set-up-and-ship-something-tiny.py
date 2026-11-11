@@ -16,12 +16,24 @@ print("model:        ", settings["model"] or "(not set)")
 print("daily budget: ", f"${settings['budget']:.2f}", "(set by you)" if "LLM_DAILY_BUDGET_USD" in os.environ else "(the kit's default)")
 
 # %% [markdown]
+# ## OPERATOR: change one value
+#
+# `OPERATOR_VALUE` is the question the next cell sends to the model. Change it to any short
+# question you like (keep the quotes), then choose Runtime → Run all, and watch the token counts
+# in the call cell and the log line below it. Longer questions cost more tokens. With no key, the
+# reply is a placeholder, but the tokens and the log are real.
+
+# %%
+OPERATOR_VALUE = "In one sentence, what is inventory forecasting software for?"  # change this, then Runtime → Run all
+DEFAULT_VALUE = "In one sentence, what is inventory forecasting software for?"
+
+# %% [markdown]
 # ## 2. Make one call
 #
 # One short question, through the same client every later module uses.
 
 # %%
-reply = llm.chat("In one sentence, what is inventory forecasting software for?", max_tokens=60)
+reply = llm.chat(OPERATOR_VALUE, max_tokens=60)
 print(reply.text)
 print(f"\n{reply.input_tokens} tokens in, {reply.output_tokens} out, cost {reply.cost_usd}, {reply.latency_s:.2f}s")
 
@@ -125,7 +137,7 @@ else:
 # %%
 from lib.checks import done_when
 
-assert done_when([
+checks = [
     ("One call made, with its tokens in the log", last_call["kind"] == "chat" and last_call["input_tokens"] > 0),
     ("Daily budget set (LLM_DAILY_BUDGET_USD)", budget_set),
     ("Provider credit limit on your key (or you're in mock mode)", provider_cap_set or in_mock_mode),
@@ -133,4 +145,10 @@ assert done_when([
     ("The function returns JSON on your machine", local_result.get("ok") is True and "reply" in local_result),
     ("Your deployed URL answers with JSON" + ("" if DEPLOYED_URL else " (skipped: no URL in the solution)"),
      deployed_ok or not DEPLOYED_URL),
-])
+]
+if OPERATOR_VALUE == DEFAULT_VALUE:
+    assert done_when(checks)
+    from lib.figures import record
+    record("m00", deploy_max_tokens=deploy_app.MAX_TOKENS, question_input_tokens=reply.input_tokens)
+else:
+    _ = done_when(checks)

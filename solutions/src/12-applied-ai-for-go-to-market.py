@@ -19,6 +19,19 @@ world = pipeline.World.load()
 LOGS = ROOT / "logs"
 
 # %% [markdown]
+# ## OPERATOR: change one value
+#
+# The share of the list held back as the holdout group, which keeps the old process. 0.5
+# splits it in half. Try 0.2 (a small holdout) or 0.8 (a small treatment group), then run
+# everything again and compare the group sizes and the 90% ranges in the results table.
+# Sensible range: 0.2 to 0.8.
+
+# %%
+OPERATOR_VALUE = 0.5  # change this, then Runtime → Run all
+OPERATOR_DEFAULT = 0.5
+assert 0.2 <= OPERATOR_VALUE <= 0.8, "use a holdout share between 0.2 and 0.8"
+
+# %% [markdown]
 # ## 1. Write the before number down first
 #
 # Before the system touches a single account. `record_before` refuses to overwrite an existing
@@ -53,10 +66,10 @@ ranked.head(10)
 # ## 3. Split into treatment and holdout, before anything is sent
 #
 # Half the list gets the new system; half keeps the old process over the same weeks. The split
-# is random, seeded, and stable per lead.
+# is random, seeded, and stable per lead. (The holdout share is the operator value at the top.)
 
 # %%
-groups = campaign.assign_holdout(ranked.lead_id, share=0.5, seed=12)
+groups = campaign.assign_holdout(ranked.lead_id, share=OPERATOR_VALUE, seed=12)
 ranked["group"] = ranked.lead_id.map(groups)
 print(ranked.group.value_counts().to_dict())
 print("mean score by group (should be close, since the split is random):")
@@ -173,7 +186,26 @@ run. And because these outcomes are simulated, none of it says the system works.
 from lib.checks import done_when
 
 before_rec = campaign.read_before(BEFORE_PATH)
-assert done_when([
+
+if OPERATOR_VALUE == OPERATOR_DEFAULT:
+    from lib.figures import record
+    means = ranked.groupby("group").score.mean().to_dict()
+    record("m12",
+           leads_with_profile=len(ranked), leads_with_offer=int(with_offer.sum()),
+           signals_unmapped=len(unmapped), holdout_share=OPERATOR_VALUE, holdout_seed=12,
+           n_treatment=report["n_treatment"], n_holdout=report["n_holdout"],
+           mean_score_treatment=means.get("treatment"), mean_score_holdout=means.get("holdout"),
+           demo_sent=len(sent), suppression_blocked=sum(suppression_blocked),
+           sending_setup_ok=setup["ok"],
+           simulated=report["simulated"],
+           simulated_holdout_reply_rate_assumed=0.04, simulated_treatment_reply_rate_assumed=0.06,
+           **{f"{m}_{g}_{k}": r[g][k] for m, r in report["metrics"].items()
+              for g in ("treatment", "holdout") for k in ("count", "rate")},
+           **{f"{m}_difference": r["difference"] for m, r in report["metrics"].items()},
+           **{f"{m}_range_90": r["range_90"] for m, r in report["metrics"].items()},
+           **{f"{m}_shown": r["shown"] for m, r in report["metrics"].items()})
+
+checks = [
     ("A before number was recorded first, with its period", before_rec is not None and before_rec["period"]),
     ("A holdout group exists and was assigned before sending",
      set(ranked.group) == {"treatment", "holdout"} and all(groups[s["draft_id"][2:]] == "treatment" for s in sent)),
@@ -182,4 +214,9 @@ assert done_when([
     ("SPF, DKIM and DMARC records pass the check", setup["ok"]),
     ("Suppression and opt-out block sends, even approved ones", suppression_blocked == [True, True]),
     ("You wrote down what the results do and don't show", len(what_the_results_say.split()) >= 25),
-])
+]
+if OPERATOR_VALUE == OPERATOR_DEFAULT:
+    assert done_when(checks)
+else:
+    print(f"OPERATOR_VALUE is {OPERATOR_VALUE}, not the default, so these are for reading, not grading:")
+    _ = done_when(checks)

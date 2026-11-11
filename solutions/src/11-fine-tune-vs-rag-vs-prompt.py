@@ -27,6 +27,19 @@ tokens = lambda text: len(enc.encode(text))
 print("mode:", "MOCK (costs from real token counts; quality is plumbing only)" if mock_mode() else "real model")
 
 # %% [markdown]
+# ## OPERATOR: change one value
+#
+# How many leads a month this step runs on. It changes the monthly cost of each approach and
+# how long fine-tuning would take to pay for itself. Try 500 for a small team or 200000 for a
+# big outbound operation, then run everything again and compare the table and the break-even.
+# Sensible range: 100 to 1,000,000.
+
+# %%
+OPERATOR_VALUE = 2_000  # change this, then Runtime → Run all
+OPERATOR_DEFAULT = 2_000
+assert 1 <= OPERATOR_VALUE <= 10_000_000, "use a monthly lead count between 1 and 10 million"
+
+# %% [markdown]
 # ## 2. Build the three system prompts
 
 # %%
@@ -65,11 +78,20 @@ def step_for(build):
         return outreach.outreach_angle(inp["company"], version="v3", system=build(inp["company"]))
     return step
 
+def logged_calls():
+    """Call-log lines so far (the log is per run: LLM_LOG_PATH)."""
+    return llm.LOG_PATH.read_text().splitlines() if llm.LOG_PATH.exists() else []
+
 runs = {}
 for name, build in APPROACHES.items():
     t0 = time.perf_counter()
+    before = len(logged_calls())
+    # run_all never raises on a bad reply: a reply that isn't valid JSON, or a refusal, is a
+    # failed case in the suite, so the comparison always completes.
     report = run_all(only=["m07_outreach_angle"], steps={"m07_outreach_angle": step_for(build)}, quiet=True)
     s = report["suites"]["m07_outreach_angle"]
+    calls = [json.loads(l) for l in logged_calls()[before:]]
+    real_cost = sum(c.get("cost_usd") or 0 for c in calls if c.get("kind") == "chat")
     in_tokens = [tokens(build(c["input"]["company"])) + SCHEMA_TOKENS
                  + tokens(outreach.fence(c["input"]["company"]["description"]) + "\nReply with the JSON object only.")
                  for c in suite_cases]
@@ -78,6 +100,11 @@ for name, build in APPROACHES.items():
         "input_tokens_per_lead": sum(in_tokens) / len(in_tokens),
         "prefix_tokens": tokens(build(suite_cases[0]["input"]["company"])) + SCHEMA_TOKENS if name != "C: + retrieved facts" else None,
         "seconds_per_lead": (time.perf_counter() - t0) / s["total"],
+        "passed": s["passed"], "total": s["total"],
+        "calls": len(calls),
+        # What the provider actually charged for this approach's 20 cases ($0 in mock mode).
+        "logged_cost_per_lead": real_cost / s["total"],
+        "logged_output_tokens_per_lead": sum(c.get("output_tokens", 0) for c in calls) / s["total"],
     }
     print(f"{name:<24} pass {s['passed']}/{s['total']}  input tokens/lead {runs[name]['input_tokens_per_lead']:.0f}")
 print(f"(each includes {SCHEMA_TOKENS} tokens of JSON schema)")
@@ -105,7 +132,7 @@ PRICES = {
     "input_per_million": 1.00,    # example input: USD per million input tokens
     "output_per_million": 4.00,   # example input: USD per million output tokens
 }
-LEADS_PER_MONTH = 2_000           # example input: how many leads this step runs on
+LEADS_PER_MONTH = OPERATOR_VALUE  # example input: how many leads this step runs on (operator value)
 
 def cost_per_lead(input_tokens, output_tokens=OUTPUT_TOKENS, prices=PRICES):
     return (input_tokens * prices["input_per_million"] + output_tokens * prices["output_per_million"]) / 1_000_000
@@ -117,6 +144,7 @@ table = pd.DataFrame({
         "cost / lead (USD)": cost_per_lead(r["input_tokens_per_lead"]),
         "cost / month (USD)": cost_per_lead(r["input_tokens_per_lead"]) * LEADS_PER_MONTH,
         "seconds / lead" + (" (MOCK)" if mock_mode() else ""): r["seconds_per_lead"],
+        **({} if mock_mode() else {"logged cost / lead (USD, real)": r["logged_cost_per_lead"]}),
     } for name, r in runs.items()
 }).T
 table
@@ -160,9 +188,12 @@ else:
 
 # Sensitivity: the best case, a tuned model at the base model's price.
 best_saving = plain_b - cost_per_lead(runs["A: prompt only"]["input_tokens_per_lead"])
-print(f"best case (same price): saves ${best_saving:.6f} per lead, "
-      f"break-even after {FT['training_cost'] / best_saving:,.0f} leads "
-      f"= {FT['training_cost'] / best_saving / LEADS_PER_MONTH:,.0f} months at {LEADS_PER_MONTH:,} leads a month")
+if best_saving > 0:
+    print(f"best case (same price): saves ${best_saving:.6f} per lead, "
+          f"break-even after {FT['training_cost'] / best_saving:,.0f} leads "
+          f"= {FT['training_cost'] / best_saving / LEADS_PER_MONTH:,.1f} months at {LEADS_PER_MONTH:,} leads a month")
+else:
+    print("best case (same price): A's prompt is no shorter than B's, so there's nothing to save")
 
 # %% [markdown]
 # ## 8. The memo
@@ -194,10 +225,47 @@ print(json.dumps(memo, indent=2))
 # %%
 from lib.checks import done_when
 
-assert done_when([
+if OPERATOR_VALUE == OPERATOR_DEFAULT:
+    from lib.figures import record
+    key = {"A: prompt only": "a", "B: prompt + 1 example": "b", "C: + retrieved facts": "c"}
+    figs = {
+        "schema_tokens": SCHEMA_TOKENS, "output_tokens_estimate": OUTPUT_TOKENS,
+        "prefix_tokens_b": prefix_b, "cache_min_tokens_example": CACHE_MIN_TOKENS,
+        "price_input_per_million_example": PRICES["input_per_million"],
+        "price_output_per_million_example": PRICES["output_per_million"],
+        "leads_per_month_example": LEADS_PER_MONTH,
+        "ft_training_cost_example": FT["training_cost"], "ft_price_multiplier_example": FT["price_multiplier"],
+        "cost_per_lead_b_base": plain_b, "cost_per_lead_a_tuned": tuned_a,
+        "ft_saving_per_lead": saving, "ft_best_case_saving_per_lead": best_saving,
+        "ft_best_case_breakeven_leads": FT["training_cost"] / best_saving if best_saving > 0 else None,
+        "ft_best_case_breakeven_months": FT["training_cost"] / best_saving / LEADS_PER_MONTH if best_saving > 0 else None,
+    }
+    for name, r in runs.items():
+        k = key[name]
+        figs[f"input_tokens_per_lead_{k}"] = r["input_tokens_per_lead"]
+        figs[f"cost_per_lead_{k}"] = cost_per_lead(r["input_tokens_per_lead"])
+        figs[f"cost_per_month_{k}"] = cost_per_lead(r["input_tokens_per_lead"]) * LEADS_PER_MONTH
+        # Quality per approach: the suite pass rate (plumbing only in mock mode).
+        figs[f"suite_pass_rate_{k}"] = r["pass_rate"]
+        figs[f"suite_passed_{k}"] = r["passed"]
+        figs[f"suite_total_{k}"] = r["total"]
+        if not mock_mode():  # real-only: what the provider charged, and how long it took
+            figs[f"logged_cost_per_lead_{k}"] = r["logged_cost_per_lead"]
+            figs[f"logged_output_tokens_per_lead_{k}"] = r["logged_output_tokens_per_lead"]
+            figs[f"seconds_per_lead_{k}"] = r["seconds_per_lead"]
+    figs["c_vs_b_input_tokens_increase"] = runs["C: + retrieved facts"]["input_tokens_per_lead"] / runs["B: prompt + 1 example"]["input_tokens_per_lead"] - 1
+    figs["c_vs_b_cost_per_lead_increase"] = figs["cost_per_lead_c"] / figs["cost_per_lead_b"] - 1
+    record("m11", **figs)
+
+checks = [
     ("At least two approaches ran on the same eval suite", len(runs) >= 2 and all(r["pass_rate"] is not None for r in runs.values())),
     ("Cost per lead comes from measured tokens times prices you entered",
      all(v is not None for v in PRICES.values()) and table["cost / lead (USD)"].gt(0).all()),
     ("The memo makes a recommendation", len(memo["recommendation"].split()) >= 20),
     ("The memo says what would change the decision", len(memo["what_would_change_it"]) >= 2),
-])
+]
+if OPERATOR_VALUE == OPERATOR_DEFAULT:
+    assert done_when(checks)
+else:
+    print(f"OPERATOR_VALUE is {OPERATOR_VALUE:,}, not the default, so these are for reading, not grading:")
+    _ = done_when(checks)

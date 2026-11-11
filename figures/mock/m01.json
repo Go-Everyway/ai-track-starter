@@ -1,0 +1,17 @@
+{
+  "conversion_rate": 0.063,
+  "converted": 252,
+  "leads": 4000,
+  "overfit_leaves": 271,
+  "overfit_test": 0.206349,
+  "overfit_train": 1.0,
+  "random_test": 0.111111,
+  "rules_test": 0.380952,
+  "rules_train": 0.375661,
+  "simple_test": 0.269841,
+  "simple_train": 0.380952,
+  "test_converted": 63,
+  "test_leads": 1000,
+  "train_converted": 189,
+  "train_leads": 3000
+}

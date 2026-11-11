@@ -61,10 +61,24 @@ E = E / np.linalg.norm(E, axis=1, keepdims=True)   # unit length, so a dot produ
 print("embeddings:", E.shape)
 
 # %% [markdown]
+# ## OPERATOR: change one value
+#
+# `OPERATOR_VALUE` is how many neighbours the lookup returns for each company. The default is 10.
+# Try anything from 3 to 25. Fewer neighbours means only the very closest matches; more means
+# the list reaches further out. Watch the lookup table and the same-industry comparison below:
+# they both change.
+
+# %%
+OPERATOR_VALUE = 10  # change this, then Runtime → Run all
+DEFAULT_VALUE = 10
+K = int(OPERATOR_VALUE)
+print(f"Showing {K} neighbours per company.")
+
+# %% [markdown]
 # ## 4. The lookup: accounts like this one
 
 # %%
-def lookalikes(company_id, vectors=E, k=10):
+def lookalikes(company_id, vectors=E, k=K):
     """The k companies most similar to `company_id`, best first, excluding itself."""
     i = companies.index[companies.company_id == company_id][0]
     sims = vectors @ vectors[i]
@@ -127,7 +141,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 T = TfidfVectorizer(stop_words="english").fit_transform(companies.description).toarray()
 T = T / np.linalg.norm(T, axis=1, keepdims=True)
 
-def same_industry_rate(vectors, k=10):
+def same_industry_rate(vectors, k=K):
     sims = vectors @ vectors.T
     np.fill_diagonal(sims, -np.inf)
     top = np.argsort(-sims, axis=1)[:, :k]
@@ -158,14 +172,28 @@ from lib.checks import done_when
 
 def lookup_works(cid):
     r = lookalikes(cid)
-    return (len(r) == 10 and cid not in set(r.company_id)
+    return (len(r) == K and cid not in set(r.company_id)
             and r.similarity.notna().all() and r.similarity.is_monotonic_decreasing)
 
-assert done_when([
+from lib.figures import record
+
+checks = [
     ("The lookup returns ranked neighbours for any company",
      all(lookup_works(c) for c in companies.company_id.sample(5, random_state=0))),
     ("You compared embeddings with a keyword baseline", {"embeddings", "TF-IDF keywords"} <= set(comparison.index)),
     ("You explained at least two bad matches",
      len(bad_matches) >= 2 and all(len(v.split()) >= 8 for v in bad_matches.values())),
     ("You wrote down when keyword search would do better", len(keyword_wins.split()) >= 20),
-])
+]
+
+if OPERATOR_VALUE == DEFAULT_VALUE:
+    mode = llm.settings()["provider"]
+    record("m05", mode=mode, companies=len(companies), customers=int(companies.is_customer.sum()),
+           cosine_a_b=round(cos(a, b), 3), cosine_a_c=round(cos(a, c), 3), cosine_b_c=round(cos(b, c), 3),
+           same_industry_embeddings=float(comparison["embeddings"]),
+           same_industry_tfidf=float(comparison["TF-IDF keywords"]),
+           same_industry_random=float(comparison["random neighbours"]), neighbours=K)
+    assert done_when(checks)
+else:
+    done_when(checks)
+    print(f"\n(OPERATOR_VALUE is {OPERATOR_VALUE}, not the default {DEFAULT_VALUE}, so this is a check, not a test.)")

@@ -1,0 +1,42 @@
+{
+  "broken_prompt_ok": false,
+  "broken_prompt_pass_rate": 0.0,
+  "code_grader_v1_accuracy": 0.875,
+  "code_grader_v1_kappa": 0.748744,
+  "code_grader_v1_too_easy": 2,
+  "code_grader_v1_too_hard": 3,
+  "code_grader_v2_accuracy": 0.9,
+  "code_grader_v2_kappa": 0.799499,
+  "first_50_failed": 0,
+  "gate_blocked": 21,
+  "gate_blocked_human_pass": 2,
+  "gate_queued": 19,
+  "gate_queued_human_fail": 2,
+  "labelled_fail": 21,
+  "labelled_failure_modes": {
+    "generic_opener": 4,
+    "invented_evidence": 4,
+    "overconfident": 3,
+    "planted_link": 3,
+    "too_long": 3,
+    "wrong_pain_point": 4
+  },
+  "labelled_n": 40,
+  "labelled_pass": 19,
+  "model_grader_specific_accuracy": 0.475,
+  "model_grader_specific_kappa": 0.0,
+  "model_grader_unusable_replies": {
+    "specific rubric": 0,
+    "vague rubric": 0
+  },
+  "model_grader_vague_accuracy": 0.475,
+  "model_grader_vague_kappa": 0.0,
+  "suite_overall_pass_rate": 1.0,
+  "suite_pass_rates": {
+    "m07_outreach_angle": 1.0,
+    "m08_rag": 1.0,
+    "m09_pipeline": 1.0
+  },
+  "suites_ok": true,
+  "taxonomy_categories": 6
+}

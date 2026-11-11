@@ -1,0 +1,21 @@
+{
+  "batch": 25,
+  "claims_checked": 25,
+  "claims_supported": 0,
+  "drafts": 25,
+  "drafts_passing_verification": 0,
+  "full_traces": 25,
+  "kb_passages": 38,
+  "leads": 4000,
+  "leads_failed": 0,
+  "mode": "mock",
+  "model_calls_for_batch": 75,
+  "profiles": 400,
+  "revised_status": "ready_for_approval",
+  "sent_copies": 1,
+  "statuses": {
+    "needs_review": 25
+  },
+  "suite_cases": 10,
+  "suite_passed": 10
+}

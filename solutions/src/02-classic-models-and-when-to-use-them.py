@@ -31,6 +31,22 @@ rules_test = catch_rate(test.apply(rule_score, axis=1), test.converted)
 print(f"baseline, Module 1 rules: {rules_test:.1%} of test conversions caught")
 
 # %% [markdown]
+# ## OPERATOR: change one value
+#
+# `OPERATOR_VALUE` is how many questions each small tree inside the boosted model may ask
+# (its `max_depth`). The default is 2, which keeps each tree simple because there are fewer
+# than 200 training conversions. Try anything from 1 to 6, then choose Runtime → Run all, and
+# compare the boosted tree's train and test numbers in the results table. Deeper trees fit the
+# training data more closely; watch whether the test number follows.
+#
+# The done-when checks at the bottom were written for the default value, so a ✗ there after
+# you change it is expected, not a mistake.
+
+# %%
+OPERATOR_VALUE = 2  # boosted tree max_depth, 1 to 6. Change this, then Runtime → Run all
+DEFAULT_VALUE = 2
+
+# %% [markdown]
 # ## 2. Pick the columns
 #
 # Every column except the identifiers (`lead_id`, `company_id`, `company`), the date it was
@@ -79,7 +95,7 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 def boosted(numeric):
     prep = ColumnTransformer([("num", "passthrough", numeric),
                               ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), CATEGORICAL)])
-    model = HistGradientBoostingClassifier(learning_rate=0.05, max_depth=2, min_samples_leaf=50,
+    model = HistGradientBoostingClassifier(learning_rate=0.05, max_depth=OPERATOR_VALUE, min_samples_leaf=50,
                                            max_iter=200, random_state=0)
     return make_pipeline(prep, model)
 
@@ -216,11 +232,46 @@ else:
 # %%
 from lib.checks import done_when
 
-assert done_when([
+checks = [
     ("Both models scored on the same held-out test set",
      results.loc[["logistic regression", "boosted tree"], "test"].notna().all()),
     ("You named five features, all in the fair model's top six",
      len(set(top_five)) == 5 and set(top_five) <= set(fair_importance.index[:6])),
     ("You flagged one feature as suspicious and said why", suspicious in cols and len(why_suspicious.split()) >= 15),
     ("Per-prediction cost computed from your own timing", cost_per_prediction > 0),
-])
+]
+if OPERATOR_VALUE == DEFAULT_VALUE:
+    assert done_when(checks)
+    from lib.figures import record
+
+    def cat(col, value):
+        return float(odds[f"cat__{col}_{value}"])
+
+    senior = {"director", "vp", "c_level"}
+    demo = train[train.lead_source == "inbound_demo"]
+    nodemo = train[train.lead_source != "inbound_demo"]
+    groups = {
+        "all": train, "demo": demo, "no_demo": nodemo,
+        "demo_senior": demo[demo.seniority.isin(senior)], "demo_other": demo[~demo.seniority.isin(senior)],
+        "no_demo_good_fit": nodemo[nodemo.industry.isin(GOOD_FIT)], "no_demo_other": nodemo[~nodemo.industry.isin(GOOD_FIT)],
+    }
+    record("m02",
+           rules_test=rules_test,
+           logreg_leak_train=logreg_train, logreg_leak_test=logreg_test,
+           boost_leak_train=boost_train, boost_leak_test=boost_test,
+           logreg_fair_train=results.loc["logistic regression", "train"], logreg_fair_test=results.loc["logistic regression", "test"],
+           boost_fair_train=results.loc["boosted tree", "train"], boost_fair_test=results.loc["boosted tree", "test"],
+           leak_importance_meetings_held=boost_importance["meetings_held"],
+           leak_importance_max_other=boost_importance.drop("meetings_held").max(),
+           fair_importance=fair_importance.head(7).round(3).to_dict(),
+           odds_demo_request=cat("lead_source", "inbound_demo"),
+           odds_wholesale=cat("industry", "Wholesale distribution"),
+           odds_food_beverage=cat("industry", "Food & beverage"),
+           odds_manufacturing=cat("industry", "Manufacturing"),
+           odds_pricing_page_source=cat("lead_source", "pricing_page"),
+           odds_outbound=cat("lead_source", "outbound"),
+           odds_pricing_visits_per_sd=float(odds["num__pricing_page_visits"]),
+           tree_split_counts={k: len(v) for k, v in groups.items()},
+           tree_split_rates={k: round(float(v.converted.mean()), 4) for k, v in groups.items()})
+else:
+    _ = done_when(checks)

@@ -16,6 +16,33 @@ print(f"\nindustry has {messy.industry.nunique()} different spellings")
 print(f"country has {messy.country.nunique()} different spellings")
 print(f"lead_source has {messy.lead_source.nunique()} different spellings")
 
+# The raw file's numbers, kept for the module page (recorded at the end).
+raw_stats = {
+    "raw_rows": len(messy),
+    "raw_blanks": messy.isna().sum()[messy.isna().sum() > 0].to_dict(),
+    "raw_rows_with_any_blank": int(messy[["industry", "employees", "country", "pages_viewed", "erp_type"]].isna().any(axis=1).sum()),
+    "raw_industry_spellings": messy.industry.nunique(), "raw_country_spellings": messy.country.nunique(),
+    "raw_source_spellings": messy.lead_source.nunique(),
+    "raw_employee_ranges": int(messy.employees.str.contains("-", na=False).sum()),
+    "raw_employee_commas": int(messy.employees.str.contains(",", na=False).sum()),
+}
+print(f"{raw_stats['raw_rows_with_any_blank']} rows have at least one blank")
+
+# %% [markdown]
+# ## OPERATOR: change one value
+#
+# `OPERATOR_VALUE` decides what happens to rows with blanks in step 7. `"fill"` (the default)
+# keeps every row and fills the gaps; `"drop"` throws away any row with a blank. Switch it to
+# `"drop"` (keep the quotes), then choose Runtime → Run all, and compare the row count after
+# step 7 and the scores in step 9.
+#
+# The done-when checks at the bottom were written for the default value, so a ✗ there after
+# you change it is expected, not a mistake.
+
+# %%
+OPERATOR_VALUE = "fill"  # "fill" or "drop". Change this, then Runtime → Run all
+DEFAULT_VALUE = "fill"
+
 # %% [markdown]
 # ## 2. Personal data first
 #
@@ -162,14 +189,23 @@ decisions.append("pages_viewed: negative values set to blank as entry errors")
 # - **Fill categories with "unknown":** says "we don't know" out loud instead of guessing.
 
 # %%
-print("blanks before:", messy[["industry", "employees", "country", "pages_viewed", "erp_type"]].isna().sum().to_dict())
-for c in ["employees", "pages_viewed"]:
-    messy[f"{c}_missing"] = messy[c].isna().astype(int)
-    messy[c] = messy[c].fillna(messy[c].median())
-for c in ["industry", "country", "erp_type"]:
-    messy[c] = messy[c].fillna("unknown")
-print("blanks after:", int(messy.isna().sum().sum()))
-decisions.append("missing numbers: median fill plus a _missing flag column; missing categories: 'unknown' as its own value")
+BLANKABLE = ["industry", "employees", "country", "pages_viewed", "erp_type"]
+print("blanks before:", messy[BLANKABLE].isna().sum().to_dict())
+if OPERATOR_VALUE == "drop":
+    before = len(messy)
+    messy = messy.dropna(subset=BLANKABLE).reset_index(drop=True)
+    for c in ["employees", "pages_viewed"]:
+        messy[f"{c}_missing"] = 0
+    print(f"dropped {before - len(messy)} rows with a blank; {len(messy):,} left")
+    decisions.append(f"missing values: dropped every row with a blank ({before - len(messy)} rows)")
+else:
+    for c in ["employees", "pages_viewed"]:
+        messy[f"{c}_missing"] = messy[c].isna().astype(int)
+        messy[c] = messy[c].fillna(messy[c].median())
+    for c in ["industry", "country", "erp_type"]:
+        messy[c] = messy[c].fillna("unknown")
+    decisions.append("missing numbers: median fill plus a _missing flag column; missing categories: 'unknown' as its own value")
+print("blanks after:", int(messy.isna().sum().sum()), f"| rows: {len(messy):,}")
 
 # %% [markdown]
 # ## 8. Hunt for leakage
@@ -258,7 +294,7 @@ for i, d in enumerate(decisions, 1):
 # %%
 from lib.checks import done_when
 
-assert done_when([
+checks = [
     ("No contact names or emails left in the data", not {"contact_name", "contact_email"} & set(messy.columns)),
     ("Every contact appears once", not messy.contact_key.duplicated().any()),
     ("One spelling per category (10 industries plus 'unknown')", messy.industry.nunique() == 11 and messy.lead_source.nunique() == 7),
@@ -268,4 +304,19 @@ assert done_when([
     ("You explained why it leaks", len(why_it_leaks.split()) >= 20),
     ("Before and after scores, and the leak inflated the score", with_leak > without_leak),
     ("You explained why the lower score is the true one", len(why_lower_is_true.split()) >= 20),
-])
+]
+if OPERATOR_VALUE == DEFAULT_VALUE:
+    assert done_when(checks)
+    from lib.figures import record
+    table = pd.crosstab(messy.meetings_held, messy.converted)
+    two_plus = table[table.index >= 2]
+    record("m03", **raw_stats,
+           extra_duplicate_rows=4120 - len(messy), contacts_straddling_split=straddle, rows_after_dedupe=len(messy),
+           impossible_employee_counts=int(impossible.sum()), negative_page_counts=int(bad_pages.sum()),
+           catch_rate_alone=alone.round(4).to_dict(),
+           zero_meetings_leads=int(table.loc[0].sum()), zero_meetings_converted=int(table.loc[0, 1]),
+           two_plus_meetings_leads=int(two_plus.values.sum()), two_plus_meetings_converted=int(two_plus[1].sum()),
+           converted=int(messy.converted.sum()), not_converted=int((messy.converted == 0).sum()),
+           score_with_leak=with_leak, score_without_leak=without_leak)
+else:
+    _ = done_when(checks)

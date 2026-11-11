@@ -94,6 +94,20 @@ for m in [SMALL_MODEL, LARGE_MODEL]:
     print(f"{m}: ${cost_usd(m, 300, 80):.5f} per lead, ${1000 * cost_usd(m, 300, 80):.2f} per 1,000 leads")
 
 # %% [markdown]
+# ## OPERATOR: change one value
+#
+# `OPERATOR_VALUE` picks which company (by row, 0 to 399) the repeated-prompt test in step 4 asks
+# about. The default is 0. Try a few other rows, say 5, 42 or 399. The prompt, its token count
+# and the most common answer all change with it. With a real model, so can the agreement rate.
+
+# %%
+OPERATOR_VALUE = 0  # change this, then Runtime → Run all
+DEFAULT_VALUE = 0
+ROW = max(0, min(int(OPERATOR_VALUE), len(companies) - 1))
+print(f"Step 4 asks about row {ROW}: {companies['name'].iloc[ROW]}")
+print(f"Its description is {len(enc.encode(companies.description.iloc[ROW]))} tokens (o200k_base).")
+
+# %% [markdown]
 # ## 4. Same prompt, 20 times: how much does the answer move?
 #
 # Agreement rate: the share of runs that gave the most common answer. 100% means the model
@@ -106,7 +120,7 @@ for m in [SMALL_MODEL, LARGE_MODEL]:
 # %%
 PROMPT = (
     "Here is a company description:\n"
-    + companies.description.iloc[0]
+    + companies.description.iloc[ROW]
     + "\n\nIn three words or fewer, what is the single best reason for an inventory-forecasting "
     "vendor to contact them? Reply with the phrase only."
 )
@@ -156,16 +170,26 @@ for _, row in companies.head(10).iterrows():
     })
 
 def run_tasks(model):
-    rows = []
+    rows, failures = [], 0
     for t in tasks:
-        r = llm.chat(t["prompt"], model=model, max_tokens=10)
-        rows.append({"correct": t["answer"] in r.text.replace(",", ""), "latency_s": r.latency_s,
+        try:
+            r = llm.chat(t["prompt"], model=model, max_tokens=10)
+        except llm.BudgetExceeded:
+            raise
+        except Exception as e:  # a refused or broken call counts as a wrong answer, and we keep going
+            failures += 1
+            rows.append({"correct": False, "latency_s": None, "in": 0, "out": 0, "logged_cost": None})
+            continue
+        rows.append({"correct": t["answer"] in (r.text or "").replace(",", ""), "latency_s": r.latency_s,
                      "in": r.input_tokens, "out": r.output_tokens, "logged_cost": r.cost_usd})
     df = pd.DataFrame(rows)
+    ok = df[df.latency_s.notna()]
     return {
-        "quality": df.correct.mean(),
-        "latency_s": df.latency_s.mean(),
-        "cost_per_call": cost_usd(model, df["in"].mean(), df["out"].mean()) if model in PRICES else None,
+        "quality": float(df.correct.mean()),
+        "latency_s": float(ok.latency_s.mean()) if len(ok) else None,
+        "cost_per_call": cost_usd(model, ok["in"].mean(), ok["out"].mean()) if (model in PRICES and len(ok)) else None,
+        "failed_calls": failures,
+        "logged_cost_per_call": float(ok.logged_cost.dropna().mean()) if ok.logged_cost.notna().any() else None,
     }
 
 comparison = {"small": run_tasks(SMALL_MODEL), "large": run_tasks(LARGE_MODEL)}
@@ -206,7 +230,9 @@ and move a step to the large model only when its own test set shows the small on
 # %%
 from lib.checks import done_when
 
-assert done_when([
+from lib.figures import record
+
+checks = [
     ("Token counts for five inputs", len(token_counts) >= 5),
     ("A cost per 1,000 leads for both models from the calculator", all(m in PRICES for m in [SMALL_MODEL, LARGE_MODEL])),
     ("20 runs at two settings, with an agreement rate (or the provider's refusal) for each",
@@ -214,4 +240,28 @@ assert done_when([
     ("Small and large models compared on quality, latency and cost",
      {"quality", "latency_s", "cost_per_call"} <= set(table.columns) and len(table) >= 4),
     ("A default model for the project, with reasons", bool(default_model) and len(why_this_model.split()) >= 25),
-])
+]
+
+if OPERATOR_VALUE == DEFAULT_VALUE:
+    figs = dict(
+        mode=settings["provider"],
+        tokens_per_sample=token_counts,
+        descriptions_tokens_o200k=real, descriptions_chars=chars,
+        descriptions_chars_div_4=chars / 4, chars_per_token=round(chars / real, 2),
+        agreement_default=variation["default settings"].get("agreement"),
+        agreement_temperature_0=variation["temperature 0"].get("agreement"),
+        temperature_0_error=variation["temperature 0"].get("error"),
+        quality_small=comparison["small"]["quality"], quality_large=comparison["large"]["quality"],
+        failed_calls_small=comparison["small"]["failed_calls"], failed_calls_large=comparison["large"]["failed_calls"],
+    )
+    if not MOCK:  # latency and logged cost only mean something against a real model
+        figs.update(small_model=SMALL_MODEL, large_model=LARGE_MODEL,
+                    latency_small_s=comparison["small"]["latency_s"], latency_large_s=comparison["large"]["latency_s"],
+                    logged_cost_per_call_small=comparison["small"]["logged_cost_per_call"],
+                    logged_cost_per_call_large=comparison["large"]["logged_cost_per_call"],
+                    agreement_latency_s=variation["default settings"].get("latency_s"))
+    record("m06", **figs)
+    assert done_when(checks)
+else:
+    done_when(checks)
+    print(f"\n(OPERATOR_VALUE is {OPERATOR_VALUE}, not the default {DEFAULT_VALUE}, so this is a check, not a test.)")

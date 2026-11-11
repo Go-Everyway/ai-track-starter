@@ -16,6 +16,20 @@ print(f"{len(docs)} documents, {len(questions)} questions, mode: {'mock' if MOCK
 print(docs["integration-quarry"])
 
 # %% [markdown]
+# ## OPERATOR: change one value
+#
+# `OPERATOR_VALUE` is the chunk size: how many words go in each passage. The default is 40. Try
+# anything from 15 to 120. Small chunks are precise but lose context; big ones keep context but
+# bury the answer. Watch the chunk count and the recall@5 numbers in steps 4 and 5 move.
+
+# %%
+OPERATOR_VALUE = 40  # change this, then Runtime → Run all
+DEFAULT_VALUE = 40
+SIZE = max(10, int(OPERATOR_VALUE))
+OVERLAP = min(10, SIZE // 4)
+print(f"Chunks of {SIZE} words with {OVERLAP} words of overlap.")
+
+# %% [markdown]
 # ## 2. Chunking
 #
 # Split documents into passages small enough to cite. Two settings: `size` (words per chunk)
@@ -28,8 +42,8 @@ print("paragraph chunks:", len(by_paragraph))
 print([c.text for c in by_paragraph if c.doc_id == "integration-quarry"])
 print("\nWhich integration syncs nightly? That chunk alone can't tell you.")
 
-windows = rag.chunk_docs(docs, size=40, overlap=10)
-print("\n40-word chunks with 10 words of overlap:", len(windows))
+windows = rag.chunk_docs(docs, size=SIZE, overlap=OVERLAP)
+print(f"\n{SIZE}-word chunks with {OVERLAP} words of overlap:", len(windows))
 print(windows[0].id, "->", windows[0].text)
 
 # %% [markdown]
@@ -40,7 +54,7 @@ print(windows[0].id, "->", windows[0].text)
 # only. Hybrid fuses both rankings with reciprocal rank fusion.
 
 # %%
-BEFORE = dict(size=40, overlap=10)
+BEFORE = dict(size=SIZE, overlap=OVERLAP)
 index = rag.build_index(docs, **BEFORE)
 MODE = "keyword" if MOCK else "hybrid"   # mock vectors only add noise, so mock runs use keyword search
 
@@ -68,8 +82,10 @@ def score(index, **kw):
 
 before = score(index, mode="keyword")
 print("before, keyword:", before)
+before_modes = {}
 for mode in ["vector", "hybrid"]:
-    print(f"before, {mode} {'(mock)' if MOCK else ''}:", score(index, mode=mode))
+    before_modes[mode] = score(index, mode=mode)
+    print(f"before, {mode} {'(mock)' if MOCK else ''}:", before_modes[mode])
 
 # %% [markdown]
 # ## 5. Change one thing and measure again
@@ -79,18 +95,22 @@ for mode in ["vector", "hybrid"]:
 # richer version of this, with a model writing the context.) One change, same questions.
 
 # %%
-AFTER = dict(size=40, overlap=10, prefix_title=True)
+AFTER = dict(size=SIZE, overlap=OVERLAP, prefix_title=True)
 index = rag.build_index(docs, **AFTER)
 after = score(index, mode="keyword")
 print("after, keyword: ", after)
 print("before, keyword:", before)
+after_modes = {mode: score(index, mode=mode) for mode in ["vector", "hybrid"]}
+print("after, vector and hybrid" + (" (mock)" if MOCK else "") + ":", after_modes)
 
 # %% [markdown]
 # The same comparison on one-paragraph chunks, where the missing context hurts most:
 
 # %%
-for cfg in [dict(by="paragraph"), dict(by="paragraph", prefix_title=True)]:
-    print(cfg, score(rag.build_index(docs, **cfg), mode="keyword"))
+paragraph_scores = {}
+for name, cfg in [("before", dict(by="paragraph")), ("after", dict(by="paragraph", prefix_title=True))]:
+    paragraph_scores[name] = score(rag.build_index(docs, **cfg), mode="keyword")
+    print(cfg, paragraph_scores[name])
 
 # %% [markdown]
 # ## 6. Answers with enforced citations
@@ -102,8 +122,11 @@ for cfg in [dict(by="paragraph"), dict(by="paragraph", prefix_title=True)]:
 # %%
 print(json.dumps(rag.answer_schema(["pricing#0", "users-and-roles#0"]), indent=1))
 for question in ["How long is a pilot?", "What is the capital of Australia?"]:
-    res = rag.answer(index, question, mode=MODE)
-    print(f"\n{question}\n  declined={res['declined']}  citations={res['citations']}  ({res['reason'] or 'answered'})")
+    try:
+        res = rag.answer(index, question, mode=MODE)
+        print(f"\n{question}\n  declined={res['declined']}  citations={res['citations']}  ({res['reason'] or 'answered'})")
+    except Exception as e:  # a real model can return something that isn't valid JSON; report it and move on
+        print(f"\n{question}\n  the model's reply couldn't be used: {type(e).__name__}: {str(e)[:120]}")
 
 # %% [markdown]
 # ## 7. The faithfulness check, over 20 questions
@@ -158,10 +181,26 @@ print("trusted only:", [h.chunk.id for h in rag.search(bad_index, question, 3, m
 # %%
 from lib.checks import done_when
 
-assert done_when([
+from lib.figures import record
+
+checks = [
     ("Every answer in the suite cites a retrieved passage or declines",
      all("answered without citing anything" not in f and not any("weren't retrieved" in x for x in f) for _, f in suite.failures())),
     ("Recall@5 measured before and after one change", before["recall@5"] >= 0 and after["recall@5"] >= 0 and AFTER != BEFORE),
     ("The faithfulness check ran over 20 questions", len(suite.rows) == 20),
     ("You showed one failure and its cause", len(failure["cause"].split()) >= 12),
-])
+]
+
+if OPERATOR_VALUE == DEFAULT_VALUE:
+    record("m08", mode="mock" if MOCK else "real", documents=len(docs), questions=len(questions),
+           chunks_paragraph=len(by_paragraph), chunks_window=len(windows), chunk_size=SIZE, chunk_overlap=OVERLAP,
+           keyword_before=before, keyword_after=after,
+           vector_before=before_modes["vector"], hybrid_before=before_modes["hybrid"],
+           vector_after=after_modes["vector"], hybrid_after=after_modes["hybrid"],
+           paragraph_keyword_before=paragraph_scores["before"], paragraph_keyword_after=paragraph_scores["after"],
+           faithfulness_cases=len(suite.rows), faithfulness_passed=sum(r["passed"] for r in suite.rows),
+           answer_mode=MODE)
+    assert done_when(checks)
+else:
+    done_when(checks)
+    print(f"\n(OPERATOR_VALUE is {OPERATOR_VALUE}, not the default {DEFAULT_VALUE}, so this is a check, not a test.)")

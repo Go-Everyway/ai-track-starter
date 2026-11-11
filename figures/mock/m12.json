@@ -1,0 +1,37 @@
+{
+  "demo_sent": 3,
+  "holdout_seed": 12,
+  "holdout_share": 0.5,
+  "leads_with_offer": 278,
+  "leads_with_profile": 400,
+  "mean_score_holdout": 0.068929,
+  "mean_score_treatment": 0.067311,
+  "meeting_difference": 0.021426,
+  "meeting_holdout_count": 2,
+  "meeting_holdout_rate": 0.009662,
+  "meeting_range_90": [
+    0.000701,
+    0.046632
+  ],
+  "meeting_shown": true,
+  "meeting_treatment_count": 6,
+  "meeting_treatment_rate": 0.031088,
+  "n_holdout": 207,
+  "n_treatment": 193,
+  "replied_difference": 0.053916,
+  "replied_holdout_count": 6,
+  "replied_holdout_rate": 0.028986,
+  "replied_range_90": [
+    0.017296,
+    0.094666
+  ],
+  "replied_shown": true,
+  "replied_treatment_count": 16,
+  "replied_treatment_rate": 0.082902,
+  "sending_setup_ok": true,
+  "signals_unmapped": 3,
+  "simulated": true,
+  "simulated_holdout_reply_rate_assumed": 0.04,
+  "simulated_treatment_reply_rate_assumed": 0.06,
+  "suppression_blocked": 2
+}
