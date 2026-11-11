@@ -4,3 +4,5 @@ jupyter>=1.0
 nbclient>=0.10
 nbformat>=5.10
 ipykernel>=6.29
+# deploy/ (Module 0): the function and its test
+flask>=3.0,<4

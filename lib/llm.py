@@ -72,6 +72,13 @@ def _settings() -> dict:
     }
 
 
+def settings() -> dict:
+    """The settings `chat()` and `embed()` would use right now, without the API key."""
+    s = _settings()
+    s["api_key_set"] = bool(s.pop("api_key"))
+    return s
+
+
 # ---------------------------------------------------------------- logging + budget
 
 def _log(entry: dict) -> None:

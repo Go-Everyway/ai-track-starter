@@ -84,7 +84,8 @@ The free route through the whole course is mock mode plus Modules 1 to 5 for rea
 | `notebooks/` | One notebook per module. |
 | `evals/` | The test sets and harness that grow from Module 7. |
 | `solutions/` | Worked solutions, added as modules are published. |
-| `tools/` | `generate_data.py` rebuilds `data/` from the seed; `run_notebooks.py` runs every notebook headless. |
+| `deploy/` | Module 0's serverless function (Flask on Vercel's Python runtime) and its local test. |
+| `tools/` | `generate_data.py` rebuilds `data/` from the seed; `make_notebooks.py` builds the notebooks from `notebooks/src` and `solutions/src`; `run_notebooks.py` runs them all headless. |
 
 See [`data/README.md`](data/README.md) for every column.
 
@@ -101,7 +102,8 @@ The generator uses only Python's standard library, so the files are byte-identic
 
 ```bash
 python -m unittest discover tests        # lib/llm.py, no network needed
-python tools/run_notebooks.py            # every notebook, in mock mode
+python tools/run_notebooks.py            # every notebook and solution, in mock mode
+python deploy/test_app.py                # Module 0's function, no network needed
 ```
 
 ## Licence and errors
