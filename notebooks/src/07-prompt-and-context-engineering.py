@@ -70,8 +70,8 @@ for version in ["v2", "v3"]:
 # %% [markdown]
 # ## 5. Your version, on the 20-case test set
 #
-# `evals/m07_outreach_angle.jsonl` has 20 companies: two from each industry and two with an
-# injection planted in the description. Some checks are marked `needs_real_model` (evidence
+# `evals/m07_outreach_angle.jsonl` has 20 cases: two companies from each of nine industries
+# (18), plus two with an injection planted in the description. Some checks are marked `needs_real_model` (evidence
 # copied word for word, sensible confidence). They're skipped in mock mode, because judging filler
 # is noise.
 #

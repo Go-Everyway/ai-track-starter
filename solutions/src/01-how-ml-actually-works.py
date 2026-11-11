@@ -129,6 +129,27 @@ results = pd.DataFrame(
 results["gap"] = results.train - results.test
 results.round(3)
 
+# %% [markdown]
+# ## 8. Does it hold on other splits?
+#
+# One split of 1,000 leads holds only 63 conversions, so each one moves the catch rate by about
+# 1.6 points. Rerun the whole comparison on ten different random splits and look at the spread.
+
+# %%
+def compare_on_split(seed):
+    tr, te = train_test_split(leads, test_size=0.25, random_state=seed, stratify=leads.converted)
+    Xtr = pd.get_dummies(tr[FEATURES], dtype=float)
+    Xte = pd.get_dummies(te[FEATURES], dtype=float).reindex(columns=Xtr.columns, fill_value=0)
+    out = {"rules": catch_rate(te.apply(rule_score, axis=1), te.converted)}
+    for name, depth in [("simple", OPERATOR_VALUE), ("overfit", None)]:
+        m = DecisionTreeClassifier(max_depth=depth, random_state=0).fit(Xtr, tr.converted)
+        out[name] = catch_rate(m.predict_proba(Xte)[:, 1], te.converted)
+    return out
+
+splits = pd.DataFrame([compare_on_split(seed) for seed in range(10)])
+print("test catch rate over 10 random splits (seeds 0-9):")
+print(splits.agg(["mean", "std", "min", "max"]).round(3))
+
 # %%
 why_the_gap = """
 The overfit tree memorized the training leads, noise and all, so it ranks them perfectly and
@@ -155,6 +176,8 @@ checks = [
 if OPERATOR_VALUE == DEFAULT_VALUE:
     assert done_when(checks)
     from lib.figures import record
+    _bars = dict(rules_train=rules_train, rules_test=rules_test, simple_train=simple_train,
+                 simple_test=simple_test, overfit_train=overfit_train, overfit_test=overfit_test)
     record("m01",
            leads=len(leads), converted=int(leads.converted.sum()), conversion_rate=leads.converted.mean(),
            train_leads=len(train), train_converted=int(train.converted.sum()),
@@ -162,6 +185,15 @@ if OPERATOR_VALUE == DEFAULT_VALUE:
            rules_train=rules_train, rules_test=rules_test,
            simple_train=simple_train, simple_test=simple_test,
            overfit_train=overfit_train, overfit_test=overfit_test, overfit_leaves=int(overfit.get_n_leaves()),
-           random_test=catch_rate(np.zeros(len(test)), test.converted))
+           random_test=catch_rate(np.zeros(len(test)), test.converted),
+           train_leads_per_leaf=len(train) / overfit.get_n_leaves(),
+           points_per_test_conversion=100 / int(test.converted.sum()),
+           splits_rules_mean=splits.rules.mean(), splits_simple_mean=splits.simple.mean(),
+           splits_overfit_mean=splits.overfit.mean(),
+           splits_std_points_max=100 * float(splits.std().max()), splits_std_points_min=100 * float(splits.std().min()),
+           nobody_converts_accuracy=1 - leads.converted.mean(),
+           # bar heights and tops for the page's chart (200 px = 100%)
+           bar={k: round(v * 200, 1) for k, v in _bars.items()},
+           bar_y={k: round(210 - v * 200, 1) for k, v in _bars.items()})
 else:
     _ = done_when(checks)

@@ -1,5 +1,6 @@
 {
   "batch": 25,
+  "calls_per_lead": 3.0,
   "claims_checked": 25,
   "claims_supported": 0,
   "drafts": 25,
@@ -17,5 +18,6 @@
     "needs_review": 25
   },
   "suite_cases": 10,
-  "suite_passed": 10
+  "suite_passed": 10,
+  "trace_steps_per_lead": 7
 }

@@ -1,17 +1,41 @@
 {
+  "bar": {
+    "overfit_test": 41.3,
+    "overfit_train": 200.0,
+    "rules_test": 76.2,
+    "rules_train": 75.1,
+    "simple_test": 54.0,
+    "simple_train": 76.2
+  },
+  "bar_y": {
+    "overfit_test": 168.7,
+    "overfit_train": 10.0,
+    "rules_test": 133.8,
+    "rules_train": 134.9,
+    "simple_test": 156.0,
+    "simple_train": 133.8
+  },
   "conversion_rate": 0.063,
   "converted": 252,
   "leads": 4000,
+  "nobody_converts_accuracy": 0.937,
   "overfit_leaves": 271,
   "overfit_test": 0.206349,
   "overfit_train": 1.0,
+  "points_per_test_conversion": 1.587302,
   "random_test": 0.111111,
   "rules_test": 0.380952,
   "rules_train": 0.375661,
   "simple_test": 0.269841,
   "simple_train": 0.380952,
+  "splits_overfit_mean": 0.173016,
+  "splits_rules_mean": 0.352381,
+  "splits_simple_mean": 0.265079,
+  "splits_std_points_max": 4.895252,
+  "splits_std_points_min": 2.902829,
   "test_converted": 63,
   "test_leads": 1000,
   "train_converted": 189,
-  "train_leads": 3000
+  "train_leads": 3000,
+  "train_leads_per_leaf": 11.070111
 }

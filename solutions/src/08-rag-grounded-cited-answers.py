@@ -200,6 +200,22 @@ if OPERATOR_VALUE == DEFAULT_VALUE:
            paragraph_keyword_before=paragraph_scores["before"], paragraph_keyword_after=paragraph_scores["after"],
            faithfulness_cases=len(suite.rows), faithfulness_passed=sum(r["passed"] for r in suite.rows),
            answer_mode=MODE)
+    # Flat copies of the retrieval scores (the site's figure tokens can't contain "@"), plus a
+    # breakdown of what failed in the faithfulness suite.
+    flat = {}
+    for name, scores in [("keyword_before", before), ("keyword_after", after),
+                         ("vector_before", before_modes["vector"]), ("hybrid_before", before_modes["hybrid"]),
+                         ("vector_after", after_modes["vector"]), ("hybrid_after", after_modes["hybrid"]),
+                         ("paragraph_keyword_before", paragraph_scores["before"]),
+                         ("paragraph_keyword_after", paragraph_scores["after"])]:
+        for metric, value in scores.items():
+            flat[f"{name}_{metric.replace('@', '_at_')}"] = value
+    unanswerable_ids = {"m08-018", "m08-019", "m08-020"}
+    record("m08", **flat,
+           suite_answerable=sum(1 for r in suite.rows if r["id"] not in unanswerable_ids),
+           suite_unanswerable=sum(1 for r in suite.rows if r["id"] in unanswerable_ids),
+           failed_answerable=sum(1 for r in suite.rows if r["id"] not in unanswerable_ids and not r["passed"]),
+           failed_unanswerable=sum(1 for r in suite.rows if r["id"] in unanswerable_ids and not r["passed"]))
     assert done_when(checks)
 else:
     done_when(checks)

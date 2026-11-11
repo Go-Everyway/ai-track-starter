@@ -4,6 +4,7 @@
   "chars_per_token": 5.16,
   "descriptions_chars": 101287,
   "descriptions_chars_div_4": 25321.75,
+  "descriptions_count": 400,
   "descriptions_tokens_o200k": 19623,
   "failed_calls_large": 0,
   "failed_calls_small": 0,
@@ -11,11 +12,16 @@
   "quality_large": 0.0,
   "quality_small": 0.0,
   "temperature_0_error": null,
+  "tokens_lagerbestandsprognose": 7,
+  "tokens_norelley": 18,
   "tokens_per_sample": {
     "12,500 SKUs across 5 warehouses": 9,
     "Lagerbestandsprognose": 7,
     "Norelley Distributors is a mid-size wholesale distribution company focused on industrial fasteners.": 18,
     "Tallyhawk": 3,
     "strawberry": 3
-  }
+  },
+  "tokens_skus": 9,
+  "tokens_strawberry": 3,
+  "tokens_tallyhawk": 3
 }

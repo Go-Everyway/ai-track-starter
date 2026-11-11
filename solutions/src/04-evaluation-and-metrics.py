@@ -154,14 +154,31 @@ thresholds.round(3)
 def precision_at_k(scores, y, k):
     return y[ranked(scores)[:k]].mean()
 
+def random_precision_at_k(y, k, draws=1000, seed=2):
+    """Average precision@k over many random orderings (seed 2). One random draw is just luck;
+    the average lands on the base rate, which is what 'random' means."""
+    g = np.random.default_rng(seed)
+    return float(np.mean([y[g.permutation(len(y))[:k]].mean() for _ in range(draws)]))
+
 KS = [25, 50, 100]
 base_rate = y_test.mean()
 p_at_k = pd.DataFrame({
-    name: [precision_at_k(s, y_test, k) for k in KS]
-    for name, s in [("random", random_scores), ("rules", rule_scores), ("model", model_scores)]
+    "random": [random_precision_at_k(y_test, k) for k in KS],
+    **{name: [precision_at_k(s, y_test, k) for k in KS]
+       for name, s in [("rules", rule_scores), ("model", model_scores)]},
 }, index=[f"precision@{k}" for k in KS])
 lift = (p_at_k / base_rate).add_prefix("lift ")
 pd.concat([p_at_k, lift], axis=1).round(2)
+
+# %% [markdown]
+# Why are the rules' numbers so flat? Their score is 0 to 3, so leads tie in big groups. The top
+# 25, 50 and 100 all come from the same two tied groups (score 3, then score 2), in random order,
+# so each list converts at roughly those groups' average rate.
+
+# %%
+rule_groups = pd.DataFrame({"score": rule_scores, "converted": y_test}).groupby("score").converted.agg(["count", "sum"])
+rule_groups["rate"] = rule_groups["sum"] / rule_groups["count"]
+rule_groups.sort_index(ascending=False)
 
 # %% [markdown]
 # ## 8. How sure are we? Two ways to see the spread
@@ -215,16 +232,24 @@ MEETING_RATE_OTHERS = 0.05     # assumption: share of everyone else who books on
 def meetings_per_week(p):
     return LEADS_PER_WEEK * (p * MEETING_RATE_BUYERS + (1 - p) * MEETING_RATE_OTHERS)
 
-p_k = {name: precision_at_k(s, y_test, K) for name, s in
-       [("random", random_scores), ("rules", rule_scores), ("model", model_scores)]}
+p_k = {"random": random_precision_at_k(y_test, K), "rules": precision_at_k(rule_scores, y_test, K),
+       "model": precision_at_k(model_scores, y_test, K)}
 meetings = {name: meetings_per_week(p) for name, p in p_k.items()}
-print({k: round(v, 1) for k, v in meetings.items()})
+print("this split:", {k: round(v, 1) for k, v in meetings.items()})
+
+# Base the business number on the ten-split average, not one lucky or unlucky split, and give
+# the range that the ten splits produced.
+estimate = {"precision": splits.model.mean(), "low": splits.model.min(), "high": splits.model.max()}
+meetings_estimate = {k: meetings_per_week(v) for k, v in estimate.items()}
+print("ten-split estimate:", {k: round(v, 1) for k, v in meetings_estimate.items()})
 
 business_sentence = (
-    f"Calling the model's top {LEADS_PER_WEEK} leads a week should book about {meetings['model']:.0f} meetings, "
+    f"Calling the model's top {LEADS_PER_WEEK} leads a week should book about {meetings_estimate['precision']:.0f} "
+    f"meetings (between {meetings_estimate['low']:.0f} and {meetings_estimate['high']:.0f} across ten test splits), "
     f"against about {meetings['random']:.0f} from a random {LEADS_PER_WEEK}, assuming {MEETING_RATE_BUYERS:.0%} of "
-    f"eventual buyers and {MEETING_RATE_OTHERS:.0%} of everyone else book a meeting, and knowing precision@{K} "
-    f"swings between about {spread.loc['5th pct', 'model']:.0%} and {spread.loc['95th pct', 'model']:.0%}."
+    f"eventual buyers and {MEETING_RATE_OTHERS:.0%} of everyone else book a meeting. That rests on an average "
+    f"precision@{K} of {estimate['precision']:.0%} (from {estimate['low']:.0%} to {estimate['high']:.0%}); "
+    f"on the single split above it was {p_k['model']:.0%}."
 )
 print(business_sentence)
 
@@ -259,6 +284,22 @@ if OPERATOR_VALUE == DEFAULT_VALUE:
            splits_model_mean=splits.model.mean(), splits_rules_mean=splits.rules.mean(),
            calibration_lowest_pred=calib.pred.iloc[0], calibration_lowest_actual=calib.actual.iloc[0],
            calibration_highest_pred=calib.pred.iloc[-1], calibration_highest_actual=calib.actual.iloc[-1],
-           meetings_per_week=meetings)
+           meetings_per_week=meetings,
+           random_draws=1000, random_seed=2,
+           splits_model_min=splits.model.min(), splits_model_max=splits.model.max(),
+           splits_rules_min=splits.rules.min(), splits_rules_max=splits.rules.max(),
+           splits_mean_gap_points=100 * (splits.model.mean() - splits.rules.mean()),
+           meetings_estimate=meetings_estimate,
+           rules_groups={str(int(k)): {"leads": int(v["count"]), "converted": int(v["sum"]), "rate": float(v["rate"])}
+                         for k, v in rule_groups.iterrows()},
+           top50_accurate=tp + tn, test_not_converted=int((y_test == 0).sum()),
+           points_per_lead_at_k=100 / K,
+           # flat names the module page can quote directly
+           pk={f"{name}_{k}": float(p_at_k.loc[f"precision@{k}", name]) for name in p_at_k.columns for k in KS},
+           lift_at_50={name: float(lift.loc["precision@50", f"lift {name}"]) for name in p_at_k.columns},
+           boot_model_lo=float(spread.loc["5th pct", "model"]), boot_model_hi=float(spread.loc["95th pct", "model"]),
+           boot_diff_lo_points=100 * float(spread.loc["5th pct", "model minus rules"]),
+           boot_diff_hi_points=100 * float(spread.loc["95th pct", "model minus rules"]),
+           splits_model_not_mean=1 - splits.model.mean())
 else:
     _ = done_when(checks)

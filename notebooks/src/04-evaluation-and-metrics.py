@@ -140,12 +140,19 @@ thresholds.round(3)
 def precision_at_k(scores, y, k):
     return y[ranked(scores)[:k]].mean()
 
+def random_precision_at_k(y, k, draws=1000, seed=2):
+    """Average precision@k over many random orderings (seed 2). One random draw is just luck;
+    the average lands on the base rate, which is what 'random' means."""
+    g = np.random.default_rng(seed)
+    return float(np.mean([y[g.permutation(len(y))[:k]].mean() for _ in range(draws)]))
+
 # YOUR TURN: pick three values of k. Include 50, your team's weekly capacity.
 KS = [50]
 base_rate = y_test.mean()
 p_at_k = pd.DataFrame({
-    name: [precision_at_k(s, y_test, k) for k in KS]
-    for name, s in [("random", random_scores), ("rules", rule_scores), ("model", model_scores)]
+    "random": [random_precision_at_k(y_test, k) for k in KS],
+    **{name: [precision_at_k(s, y_test, k) for k in KS]
+       for name, s in [("rules", rule_scores), ("model", model_scores)]},
 }, index=[f"precision@{k}" for k in KS])
 lift = (p_at_k / base_rate).add_prefix("lift ")
 pd.concat([p_at_k, lift], axis=1).round(2)
@@ -207,8 +214,14 @@ p50 = p_at_k.loc["precision@50"]
 meetings = {name: meetings_per_week(p50[name]) for name in p50.index}
 print({k: round(v, 1) for k, v in meetings.items()})
 
-# YOUR TURN: one sentence a sales leader could act on. Include the number, the baseline,
-# your assumptions, and the spread from section 8. Use the variables above, e.g. {meetings['model']:.0f}.
+# The single split above is one draw. Base the business number on the ten-split average from
+# section 8, with the range the ten splits produced.
+meetings_estimate = {"average": meetings_per_week(splits.model.mean()),
+                     "low": meetings_per_week(splits.model.min()), "high": meetings_per_week(splits.model.max())}
+print({k: round(v, 1) for k, v in meetings_estimate.items()})
+
+# YOUR TURN: one sentence a sales leader could act on. Include the number (from the ten-split
+# average), its range, the baseline and your assumptions, e.g. {meetings_estimate['average']:.0f}.
 business_sentence = f""
 print(business_sentence)
 

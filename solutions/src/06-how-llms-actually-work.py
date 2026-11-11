@@ -211,7 +211,7 @@ table = pd.DataFrame([
     for size, m in [("small", SMALL_MODEL), ("large", LARGE_MODEL)]
 ])
 if MOCK:
-    table["note"] = table["note"].where(table["note"] != "", "mock: not real model behaviour")
+    table["note"] = table["note"].where(table["note"] != "", "mock: not real model behavior")
 table
 
 # %%
@@ -246,6 +246,11 @@ if OPERATOR_VALUE == DEFAULT_VALUE:
     figs = dict(
         mode=settings["provider"],
         tokens_per_sample=token_counts,
+        tokens_strawberry=token_counts["strawberry"], tokens_tallyhawk=token_counts["Tallyhawk"],
+        tokens_lagerbestandsprognose=token_counts["Lagerbestandsprognose"],
+        tokens_skus=token_counts["12,500 SKUs across 5 warehouses"],
+        tokens_norelley=token_counts[samples[2]],
+        descriptions_count=len(companies),
         descriptions_tokens_o200k=real, descriptions_chars=chars,
         descriptions_chars_div_4=chars / 4, chars_per_token=round(chars / real, 2),
         agreement_default=variation["default settings"].get("agreement"),

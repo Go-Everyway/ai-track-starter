@@ -71,7 +71,8 @@ for name, exc in examples.items():
 
 # %%
 delays = ops.backoff_delays(5, base=0.5, cap=8, rng=random.Random(1))
-print("waits before retries 2-5:", [round(d, 2) for d in delays], "seconds")
+print("waits before attempts 2 to 5 (retries 1 to 4):", [round(d, 2) for d in delays], "seconds")
+print("ceilings:", [min(8, 0.5 * 2 ** n) for n in range(4)])
 
 # %% [markdown]
 # ## 4. Pin the model
@@ -246,7 +247,7 @@ if OPERATOR_VALUE == OPERATOR_DEFAULT:
     record("m13",
            retryable={name: ops.is_retryable(exc) for name, exc in examples.items()},
            backoff_waits_seed1=[round(d, 2) for d in delays],
-           leads_through_pipeline=len(results), fallback_switches=len(fallbacks),
+           leads_through_pipeline=len(results), fallback_switches=len(fallbacks), alert_min_calls=20, backoff_ceilings=[min(8, 0.5 * 2 ** n) for n in range(4)],
            models_that_answered=sorted(models_used),
            today_calls=len(calls_today), today_errors=sum(e["outcome"] == "error" for e in calls_today),
            timeout_s=0.2, slow_primary_s=1.0, slow_call_answered_by=reply.model,
@@ -257,7 +258,12 @@ if OPERATOR_VALUE == OPERATOR_DEFAULT:
            synthetic_dashboard={r["day"]: {k: r[k] for k in ("calls", "errors", "error_rate", "cost_usd")}
                                 for r in by_day if r["day"] in {e["ts"][:10] for e in synthetic}},
            alert_threshold_error_rate=MAX_ERROR_RATE, alert_threshold_cost=MAX_COST_PER_DAY,
-           alerts=len(alerts), deployed=deployed, broken_deploy_blocked=blocked)
+           alerts=len(alerts), deployed=deployed, broken_deploy_blocked=blocked,
+           # The two bad synthetic days, under keys a page can reference.
+           synthetic_error_day=max(({k: r[k] for k in ("calls", "errors", "error_rate")} for r in by_day
+                                    if r["day"] in {e["ts"][:10] for e in synthetic}), key=lambda r: r["error_rate"]),
+           synthetic_spend_day_cost=max(r["cost_usd"] for r in by_day if r["day"] in {e["ts"][:10] for e in synthetic}),
+           today_error_rate=sum(e["outcome"] == "error" for e in calls_today) / len(calls_today) if calls_today else None)
 
 checks = [
     ("The dashboard shows cost and error rate per day",

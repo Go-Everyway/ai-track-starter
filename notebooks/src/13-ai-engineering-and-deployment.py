@@ -58,7 +58,7 @@ for name, exc in examples.items():
 
 # %%
 delays = ops.backoff_delays(5, base=0.5, cap=8, rng=random.Random(1))
-print("waits before retries 2-5:", [round(d, 2) for d in delays], "seconds")
+print("waits before attempts 2 to 5 (retries 1 to 4):", [round(d, 2) for d in delays], "seconds")
 
 # %% [markdown]
 # ## 4. Pin the model

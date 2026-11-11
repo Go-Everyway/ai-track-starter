@@ -14,6 +14,7 @@
   },
   "leak_importance_max_other": 0.000948,
   "leak_importance_meetings_held": 0.890849,
+  "llm_prompt_input_tokens": 52,
   "logreg_fair_test": 0.333333,
   "logreg_fair_train": 0.47619,
   "logreg_leak_test": 0.984127,
@@ -26,6 +27,30 @@
   "odds_pricing_visits_per_sd": 1.284775,
   "odds_wholesale": 2.623837,
   "rules_test": 0.380952,
+  "splits_mean": {
+    "boosted": 0.350794,
+    "boosted_default_test": 0.295238,
+    "boosted_default_train": 1.0,
+    "logistic": 0.384127,
+    "logistic_with_leak": 0.98254,
+    "rules": 0.352381
+  },
+  "splits_min": {
+    "boosted": 0.285714,
+    "boosted_default_test": 0.222222,
+    "boosted_default_train": 1.0,
+    "logistic": 0.333333,
+    "logistic_with_leak": 0.952381,
+    "rules": 0.285714
+  },
+  "splits_std_points": {
+    "boosted": 5.261824,
+    "boosted_default_test": 5.853679,
+    "boosted_default_train": 0.0,
+    "logistic": 4.219556,
+    "logistic_with_leak": 1.389833,
+    "rules": 4.895252
+  },
   "tree_split_counts": {
     "all": 3000,
     "demo": 228,

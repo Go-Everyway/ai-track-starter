@@ -89,8 +89,8 @@ for version in ["v2", "v3"]:
 # %% [markdown]
 # ## 5. Your version, on the 20-case test set
 #
-# `evals/m07_outreach_angle.jsonl` has 20 companies: two from each industry and two with an
-# injection planted in the description. Some checks are marked `needs_real_model` (evidence
+# `evals/m07_outreach_angle.jsonl` has 20 cases: two companies from each of nine industries
+# (18), plus two with an injection planted in the description. Some checks are marked `needs_real_model` (evidence
 # copied word for word, sensible confidence). They're skipped in mock mode, because judging filler
 # is noise.
 #
@@ -144,8 +144,12 @@ prefix_tokens = len(MY_SYSTEM) // 4  # rough four-characters-per-token rule
 suffix_tokens = len(user_message) // 4
 prefix_tokens_o200k = len(enc.encode(MY_SYSTEM))
 suffix_tokens_o200k = len(enc.encode(user_message))
+# The JSON schema travels with every request too, so it's part of the fixed prefix.
+schema_tokens_o200k = len(enc.encode(json.dumps(outreach.SCHEMA)))
+fixed_tokens_o200k = prefix_tokens_o200k + schema_tokens_o200k
 print(f"fixed prefix ~{prefix_tokens} tokens, per-company part ~{suffix_tokens} tokens (four-characters rule)")
-print(f"fixed prefix {prefix_tokens_o200k} tokens, per-company part {suffix_tokens_o200k} tokens (o200k_base)")
+print(f"system prompt {prefix_tokens_o200k} + schema {schema_tokens_o200k} = {fixed_tokens_o200k} fixed tokens, "
+      f"per-company part {suffix_tokens_o200k} tokens (o200k_base)")
 print("Check your model's minimum cacheable length in its docs. Below it, the prefix isn't cached at all.")
 
 # %% [markdown]
@@ -176,11 +180,22 @@ checks = [
 ]
 
 if OPERATOR_VALUE == DEFAULT_VALUE:
+    # False positives: how many of the kit's ordinary descriptions the injection patterns would strip.
+    descriptions_flagged = sum(bool(outreach.strip_instructions(d)[1]) for d in companies.description)
+    full_suite = [json.loads(l) for l in SUITE.read_text().splitlines() if l.strip()]
+    regular = [c for c in full_suite if c["id"] not in injection_ids]
     record("m07", mode=provider, cases=len(cases), checks_in_mode=sum(len(c["expect"]) for c in cases),
+           checks_total=sum(len(c["expect"]) for c in full_suite),
+           cases_regular=len(regular), cases_injection=len(full_suite) - len(regular),
+           industries_covered=len({c["input"]["company"]["industry"] for c in regular}),
+           descriptions_checked=len(companies), descriptions_flagged=descriptions_flagged,
+           passed_v1=sum(r["passed"] for r in results["v1"].rows), passed_v2=sum(r["passed"] for r in results["v2"].rows),
+           passed_v3=sum(r["passed"] for r in results["v3"].rows), passed_mine=sum(r["passed"] for r in results["mine"].rows),
            pass_rate_v1=pass_rates["v1"], pass_rate_v2=pass_rates["v2"], pass_rate_v3=pass_rates["v3"],
            pass_rate_mine=pass_rates["mine"], valid_share_mine=valid_share,
            prefix_tokens_rough=prefix_tokens, suffix_tokens_rough=suffix_tokens,
-           prefix_tokens_o200k=prefix_tokens_o200k, suffix_tokens_o200k=suffix_tokens_o200k)
+           prefix_tokens_o200k=prefix_tokens_o200k, suffix_tokens_o200k=suffix_tokens_o200k,
+           schema_tokens_o200k=schema_tokens_o200k, fixed_tokens_o200k=fixed_tokens_o200k)
     assert done_when(checks)
 else:
     done_when(checks)

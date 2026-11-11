@@ -47,19 +47,22 @@ DEFAULT_VALUE = "fill"
 # ## 2. Personal data first
 #
 # The export carries contact names and emails. A model doesn't need either. The email is still
-# useful for one job, spotting the same person entered twice, so swap it for a salted hash
-# (a stand-in that matches itself but can't be read back), then drop both raw columns.
+# useful for one job, spotting the same person entered twice, so swap it for a keyed hash
+# (HMAC: a stand-in that's the same every time for the same email, so duplicates still match,
+# but can't be read back without the secret key), then drop both raw columns. A hashed email is
+# still personal data under GDPR: hashing cuts the exposure, it doesn't remove the obligation.
 # Do this before the data goes anywhere else, including any AI tool.
 
 # %%
 import hashlib
+import hmac
 
-SALT = "change-me-and-keep-it-out-of-git"
+HASH_KEY = b"change-me-and-keep-it-out-of-git"  # a secret: in real use, load it from .env
 messy["contact_key"] = messy.contact_email.str.strip().str.lower().map(
-    lambda e: hashlib.sha256((SALT + e).encode()).hexdigest()[:16]
+    lambda e: hmac.new(HASH_KEY, e.encode(), hashlib.sha256).hexdigest()[:16]
 )
 messy = messy.drop(columns=["contact_name", "contact_email"])
-decisions.append("pii: replaced contact_email with a salted hash (contact_key) for dedupe; dropped contact_name and contact_email")
+decisions.append("pii: replaced contact_email with a keyed hash (HMAC, contact_key) for dedupe; dropped contact_name and contact_email")
 
 # %% [markdown]
 # ## 3. Dates in three formats
@@ -100,6 +103,7 @@ tr, te = train_test_split(messy, test_size=0.25, random_state=0, stratify=messy.
 straddle = len(set(tr.contact_key) & set(te.contact_key))
 print(f"\nwithout dedupe, {straddle} contacts would sit in both train and test")
 
+raw_before_dedupe = messy.copy()
 messy = messy.sort_values("lead_id").drop_duplicates("contact_key", keep="first").reset_index(drop=True)
 print(f"after dedupe: {len(messy):,} rows")
 decisions.append(f"duplicates: matched on contact_key, kept the lowest lead_id, dropped {4120 - len(messy)} rows; done before the split")
@@ -274,6 +278,23 @@ results = pd.Series({"every column": with_leak, f"without {leaking_column or '(n
 print(results.map("{:.1%}".format).to_string())
 decisions.append(f"leakage: dropped {leaking_column} from the features")
 
+# %% [markdown]
+# ## 9b. Ten splits
+#
+# One split is one draw. Repeat the comparison on ten random splits (seeds 0 to 9): how many
+# contacts would straddle the split without dedupe, and the score with and without the leak.
+
+# %%
+rows = []
+for seed in range(10):
+    rtr, rte = train_test_split(raw_before_dedupe, test_size=0.25, random_state=seed, stratify=raw_before_dedupe.converted)
+    tr10, te10 = train_test_split(messy, test_size=0.25, random_state=seed, stratify=messy.converted)
+    rows.append({"straddling": len(set(rtr.contact_key) & set(rte.contact_key)),
+                 "with_leak": score(tr10, te10, ALL_NUMBERS),
+                 "without_leak": score(tr10, te10, [c for c in ALL_NUMBERS if c != leaking_column])})
+ten = pd.DataFrame(rows)
+ten.agg(["min", "max", "mean"]).round(3)
+
 # %%
 why_lower_is_true = """
 The higher score used a column that only exists after the deal is already moving, so it can't
@@ -317,6 +338,10 @@ if OPERATOR_VALUE == DEFAULT_VALUE:
            zero_meetings_leads=int(table.loc[0].sum()), zero_meetings_converted=int(table.loc[0, 1]),
            two_plus_meetings_leads=int(two_plus.values.sum()), two_plus_meetings_converted=int(two_plus[1].sum()),
            converted=int(messy.converted.sum()), not_converted=int((messy.converted == 0).sum()),
-           score_with_leak=with_leak, score_without_leak=without_leak)
+           score_with_leak=with_leak, score_without_leak=without_leak,
+           drop_share=raw_stats["raw_rows_with_any_blank"] / raw_stats["raw_rows"],
+           class_weight_ratio=int((messy.converted == 0).sum()) / int(messy.converted.sum()),
+           nobody_converts_accuracy=1 - messy.converted.mean(), conversion_rate=messy.converted.mean(),
+           ten_splits={k: {"min": float(ten[k].min()), "max": float(ten[k].max())} for k in ten.columns})
 else:
     _ = done_when(checks)

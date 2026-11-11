@@ -9,6 +9,10 @@
   "meeting_difference": 0.021426,
   "meeting_holdout_count": 2,
   "meeting_holdout_rate": 0.009662,
+  "meeting_normal_range_90": [
+    -0.001971,
+    0.044823
+  ],
   "meeting_range_90": [
     0.000701,
     0.046632
@@ -18,9 +22,19 @@
   "meeting_treatment_rate": 0.031088,
   "n_holdout": 207,
   "n_treatment": 193,
+  "power_big_group_n": 1032,
+  "power_big_meeting": 0.36,
+  "power_big_replied": 0.715,
+  "power_meeting": 0.17,
+  "power_replied": 0.22,
+  "power_runs": 200,
   "replied_difference": 0.053916,
   "replied_holdout_count": 6,
   "replied_holdout_rate": 0.028986,
+  "replied_normal_range_90": [
+    0.016049,
+    0.091783
+  ],
   "replied_range_90": [
     0.017296,
     0.094666

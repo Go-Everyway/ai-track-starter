@@ -2,6 +2,10 @@
   "accuracy_nobody_converts": 0.937,
   "base_rate": 0.063,
   "best_c": 0.01,
+  "boot_diff_hi_points": 10.0,
+  "boot_diff_lo_points": -10.0,
+  "boot_model_hi": 0.34,
+  "boot_model_lo": 0.14,
   "bootstrap_p50": {
     "model": {
       "5th pct": 0.14,
@@ -30,9 +34,9 @@
       "precision@50": 3.492
     },
     "lift random": {
-      "precision@100": 1.111,
-      "precision@25": 1.27,
-      "precision@50": 1.587
+      "precision@100": 1.0,
+      "precision@25": 0.998,
+      "precision@50": 1.001
     },
     "lift rules": {
       "precision@100": 3.81,
@@ -40,11 +44,33 @@
       "precision@50": 3.81
     }
   },
+  "lift_at_50": {
+    "model": 3.492063,
+    "random": 1.00127,
+    "rules": 3.809524
+  },
+  "meetings_estimate": {
+    "high": 14.6,
+    "low": 8.55,
+    "precision": 11.025
+  },
   "meetings_per_week": {
     "model": 8.55,
-    "random": 5.25,
+    "random": 4.2347,
     "rules": 9.1
   },
+  "pk": {
+    "model_100": 0.22,
+    "model_25": 0.36,
+    "model_50": 0.22,
+    "random_100": 0.06301,
+    "random_25": 0.06288,
+    "random_50": 0.06308,
+    "rules_100": 0.24,
+    "rules_25": 0.24,
+    "rules_50": 0.24
+  },
+  "points_per_lead_at_k": 2.0,
   "precision_at_k": {
     "model": {
       "precision@100": 0.22,
@@ -52,9 +78,9 @@
       "precision@50": 0.22
     },
     "random": {
-      "precision@100": 0.07,
-      "precision@25": 0.08,
-      "precision@50": 0.1
+      "precision@100": 0.063,
+      "precision@25": 0.0629,
+      "precision@50": 0.0631
     },
     "rules": {
       "precision@100": 0.24,
@@ -62,11 +88,42 @@
       "precision@50": 0.24
     }
   },
+  "random_draws": 1000,
+  "random_seed": 2,
+  "rules_groups": {
+    "0": {
+      "converted": 15,
+      "leads": 534,
+      "rate": 0.02809
+    },
+    "1": {
+      "converted": 24,
+      "leads": 356,
+      "rate": 0.067416
+    },
+    "2": {
+      "converted": 18,
+      "leads": 88,
+      "rate": 0.204545
+    },
+    "3": {
+      "converted": 6,
+      "leads": 22,
+      "rate": 0.272727
+    }
+  },
+  "splits_mean_gap_points": 6.8,
   "splits_model_ahead": 8,
+  "splits_model_max": 0.44,
   "splits_model_mean": 0.31,
+  "splits_model_min": 0.22,
+  "splits_model_not_mean": 0.69,
+  "splits_rules_max": 0.36,
   "splits_rules_mean": 0.242,
+  "splits_rules_min": 0.18,
   "test_converted": 63,
   "test_leads": 1000,
+  "test_not_converted": 937,
   "thresholds": [
     {
       "cutoff": 0.05,
@@ -100,6 +157,7 @@
     }
   ],
   "top50_accuracy": 0.909,
+  "top50_accurate": 909,
   "top50_f1": 0.19469,
   "top50_fn": 52,
   "top50_fp": 39,

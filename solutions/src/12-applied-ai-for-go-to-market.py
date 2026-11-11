@@ -170,12 +170,62 @@ report = campaign.results(outcomes)
 print("SIMULATED outcomes. Before number on record:", before["values"], "for", before["period"])
 campaign.results_table(report)
 
+# %% [markdown]
+# The bootstrap range above resamples each group. With counts this small (a handful of meetings),
+# it's worth a second method: the textbook normal approximation, difference ± 1.645 standard
+# errors. When two reasonable methods disagree about whether zero is inside the range, you
+# haven't shown an effect.
+
+# %%
+import math
+
+def normal_range_90(r, n_t, n_h):
+    pt, ph = r["treatment"]["rate"], r["holdout"]["rate"]
+    se = math.sqrt(pt * (1 - pt) / n_t + ph * (1 - ph) / n_h)
+    return [r["difference"] - 1.645 * se, r["difference"] + 1.645 * se]
+
+normal_ranges = {m: normal_range_90(r, report["n_treatment"], report["n_holdout"]) for m, r in report["metrics"].items()}
+for m, r in report["metrics"].items():
+    lo, hi = r["range_90"]
+    nlo, nhi = normal_ranges[m]
+    print(f"{m:8} bootstrap {lo:+.1%} to {hi:+.1%}   normal approx {nlo:+.1%} to {nhi:+.1%}")
+
+# %% [markdown]
+# ## 8. Power check (SIMULATED)
+#
+# How often would a test this size show an effect at all, if the assumed lift were real? Rerun
+# the simulation with 200 different seeds and count how often the 90% range clears zero. Then do
+# the same with about 1,000 accounts a group (the list repeated five times) to see what more
+# volume buys. Meetings are rarer than replies, so they need more.
+
+# %%
+POWER_RUNS = 200
+
+def power(groups_, scores_, runs=POWER_RUNS):
+    shown = {"replied": 0, "meeting": 0}
+    for seed in range(runs):
+        out = campaign.simulate_outcomes(groups_, scores_, seed=1000 + seed, holdout_reply=0.04, treatment_reply=0.06)
+        rep_ = campaign.results(out, n_boot=400, seed=seed)
+        for m in shown:
+            shown[m] += rep_["metrics"][m]["shown"]
+    return {m: v / runs for m, v in shown.items()}
+
+power_now = power(groups, scores)
+big_ids = [f"{i}~{k}" for k in range(5) for i in ranked.lead_id]
+big_groups = campaign.assign_holdout(big_ids, share=OPERATOR_VALUE, seed=12)
+big_scores = {f"{i}~{k}": s_ for k in range(5) for i, s_ in scores.items()}
+power_big = power(big_groups, big_scores)
+n_big = sum(g == "treatment" for g in big_groups.values())
+print(f"about {report['n_treatment']} a group: an effect shows {power_now['replied']:.0%} of the time for replies, {power_now['meeting']:.0%} for meetings")
+print(f"about {n_big} a group: {power_big['replied']:.0%} for replies, {power_big['meeting']:.0%} for meetings")
+
 # %%
 what_the_results_say = """
-In this simulated run the treatment group replied and booked meetings more often, and both 90%
-ranges sit just above zero, but the meetings result rests on 6 meetings against 2. With about
-200 accounts a group, the same assumed rates show an effect only about one run in five, so this
-was a lucky draw, not proof. A real test of a 2-point lift needs a much bigger list or a longer
+In this simulated run the treatment group replied and booked meetings more often. The replies
+range clears zero by both methods. The meetings result rests on 6 meetings against 2: its
+bootstrap range barely clears zero and the normal approximation includes zero, so it isn't shown.
+With about 200 accounts a group, the same assumed rates show a meetings effect in well under one
+run in five, so even the replies result was partly luck, not proof. A real test of a 2-point lift needs a much bigger list or a longer
 run. And because these outcomes are simulated, none of it says the system works.
 """
 
@@ -203,7 +253,10 @@ if OPERATOR_VALUE == OPERATOR_DEFAULT:
               for g in ("treatment", "holdout") for k in ("count", "rate")},
            **{f"{m}_difference": r["difference"] for m, r in report["metrics"].items()},
            **{f"{m}_range_90": r["range_90"] for m, r in report["metrics"].items()},
-           **{f"{m}_shown": r["shown"] for m, r in report["metrics"].items()})
+           **{f"{m}_shown": r["shown"] for m, r in report["metrics"].items()},
+           **{f"{m}_normal_range_90": normal_ranges[m] for m in report["metrics"]},
+           power_runs=POWER_RUNS, power_replied=power_now["replied"], power_meeting=power_now["meeting"],
+           power_big_group_n=n_big, power_big_replied=power_big["replied"], power_big_meeting=power_big["meeting"])
 
 checks = [
     ("A before number was recorded first, with its period", before_rec is not None and before_rec["period"]),

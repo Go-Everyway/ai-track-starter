@@ -158,9 +158,12 @@ table
 
 # %%
 CACHE_MIN_TOKENS = 1024          # example input: your model's minimum cacheable prefix
+CACHE_MIN_LOWEST = 512           # the lowest minimum Module 7 found (some Anthropic models)
 prefix_b = runs["B: prompt + 1 example"]["prefix_tokens"]
-print(f"B's fixed prefix (system prompt + schema) is {prefix_b} tokens; the minimum is {CACHE_MIN_TOKENS}.")
-print("caching applies" if prefix_b >= CACHE_MIN_TOKENS else "too short to cache: caching saves nothing on this step")
+print(f"B's fixed prefix (system prompt + schema) is {prefix_b} tokens.")
+for minimum in (CACHE_MIN_TOKENS, CACHE_MIN_LOWEST):
+    verdict = "long enough to cache" if prefix_b >= minimum else "too short to cache: caching saves nothing"
+    print(f"  on a model with a {minimum:,}-token minimum: {verdict}")
 
 # %% [markdown]
 # ## 7. Fine-tuning break-even
@@ -204,8 +207,10 @@ memo = {
     "suite": "m07_outreach_angle (20 cases)",
     "recommendation": (
         "Keep B, the v3 prompt with one worked example. It's the cheapest approach that keeps the "
-        "example, which carries the format and tone, and the prefix is too short for caching to matter. "
-        "C adds retrieved Tallyhawk facts for about 30% more input tokens, which only pays off "
+        "example, which carries the format and tone. On a model with a 1,024-token cache minimum the "
+        "prefix is too short to cache; on one with a 512-token minimum it just qualifies, so check yours. "
+        "C adds retrieved Tallyhawk facts for about 29% more input tokens (17% more per lead at the "
+        "example prices, since output tokens don't change), which only pays off "
         "if real-model tests show openers making unsupported product claims. Fine-tuning never breaks "
         "even at these inputs, because the tuned model's higher price outweighs the tokens it saves."
     ),
@@ -255,6 +260,12 @@ if OPERATOR_VALUE == OPERATOR_DEFAULT:
             figs[f"seconds_per_lead_{k}"] = r["seconds_per_lead"]
     figs["c_vs_b_input_tokens_increase"] = runs["C: + retrieved facts"]["input_tokens_per_lead"] / runs["B: prompt + 1 example"]["input_tokens_per_lead"] - 1
     figs["c_vs_b_cost_per_lead_increase"] = figs["cost_per_lead_c"] / figs["cost_per_lead_b"] - 1
+    figs["example_tokens_per_lead"] = runs["B: prompt + 1 example"]["input_tokens_per_lead"] - runs["A: prompt only"]["input_tokens_per_lead"]
+    figs["example_cost_per_month"] = figs["cost_per_month_b"] - figs["cost_per_month_a"]
+    figs["cache_min_tokens_lowest"] = CACHE_MIN_LOWEST
+    figs["cacheable_at_example_min"] = prefix_b >= CACHE_MIN_TOKENS
+    figs["cacheable_at_lowest_min"] = prefix_b >= CACHE_MIN_LOWEST
+    figs["retrieved_passages_c"] = 3
     record("m11", **figs)
 
 checks = [

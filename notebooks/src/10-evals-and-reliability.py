@@ -65,32 +65,48 @@ broken = run_all(only=["m07_outreach_angle"], steps={"m07_outreach_angle": broke
 # %% [markdown]
 # ## 4. Is the grader right? Check it against people
 #
-# The code grader runs the rules from the taxonomy. Score all 40 labelled outputs with it,
-# then compare with the human verdicts.
+# The code grader runs the rules from the taxonomy. Compare its verdicts with the person's.
+#
+# Split the labels first, so you develop on one half and measure on the other. Tuning a
+# grader on the outputs you measure it on gives an in-sample number that flatters it. The
+# rule here: within each kind of failure (and the passes), take the outputs in id order and
+# alternate, development then held-out. Every label came from one person, so kappa below is
+# agreement with that one labeler, not between people.
 
 # %%
-def grade_all(grader, **kw):
-    return [grader(i["company"], i["output"], **kw)["verdict"] == "pass" for i in labelled]
+def grade_all(grader, items=None, **kw):
+    return [grader(i["company"], i["output"], **kw)["verdict"] == "pass" for i in (items or labelled)]
 
-code_v1 = agreement(human_pass, grade_all(code_grade, version="v1"))
-print(f"code grader v1: {code_v1['accuracy']:.1%} agreement, kappa {code_v1['kappa']:.2f}")
-print(f"  too easy (person failed it, grader passed): {code_v1['grader_too_easy']}")
-print(f"  too hard (person passed it, grader failed): {code_v1['grader_too_hard']}")
+by_mode = {}
+for i in labelled:
+    by_mode.setdefault(i["human"]["failure_mode"], []).append(i)
+dev_ids, held_ids = set(), set()
+for mode, items in by_mode.items():
+    for k, i in enumerate(sorted(items, key=lambda x: x["id"])):
+        (dev_ids if k % 2 == 0 else held_ids).add(i["id"])
+dev = [i for i in labelled if i["id"] in dev_ids]
+held = [i for i in labelled if i["id"] in held_ids]
+human = lambda items: [i["human"]["verdict"] == "pass" for i in items]
+
+dev_v1 = agreement(human(dev), grade_all(code_grade, dev, version="v1"))
+print(f"code grader v1 on the development half: {dev_v1['accuracy']:.1%} agreement, kappa {dev_v1['kappa']:.2f}")
 
 # %%
-for i, g in zip(labelled, grade_all(code_grade, version="v1")):
+# Read the development disagreements only. Decide which are rule problems you can fix and
+# which are judgment calls.
+for i, g in zip(dev, grade_all(code_grade, dev, version="v1")):
     if g != (i["human"]["verdict"] == "pass"):
         print(f"{i['id']}  person: {i['human']['verdict']:<4}  grader: {'pass' if g else 'fail'}  | {i['human']['reason']}")
 
 # %% [markdown]
-# Two misses are things rules can't see (a vague opener with no stock phrase, a pain point
-# that's wrong but plausible). That's what a model grader is for. Three are the grader being
-# stricter than a careful reviewer. One of those is fixable: evidence stitched from two exact
-# phrases with "..." is faithful, and v2 of the rule accepts it.
+# One is fixable: evidence stitched from two exact phrases with "..." is faithful, and v2 of
+# the rule accepts it. Now measure both versions once on the held-out half.
 
 # %%
-code_v2 = agreement(human_pass, grade_all(code_grade, version="v2"))
-print(f"code grader v2: {code_v2['accuracy']:.1%} agreement, kappa {code_v2['kappa']:.2f}")
+held_v1 = agreement(human(held), grade_all(code_grade, held, version="v1"))
+held_v2 = agreement(human(held), grade_all(code_grade, held, version="v2"))
+print(f"held out: v1 {held_v1['accuracy']:.0%} (kappa {held_v1['kappa']:.2f}) -> v2 {held_v2['accuracy']:.0%} (kappa {held_v2['kappa']:.2f})")
+code_v2 = held_v2
 
 # %% [markdown]
 # Now the model grader, with the vague rubric and the specific one. **In mock mode this is

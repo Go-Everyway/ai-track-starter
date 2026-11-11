@@ -63,8 +63,8 @@ print("embeddings:", E.shape)
 # %% [markdown]
 # ## OPERATOR: change one value
 #
-# `OPERATOR_VALUE` is how many neighbours the lookup returns for each company. The default is 10.
-# Try anything from 3 to 25. Fewer neighbours means only the very closest matches; more means
+# `OPERATOR_VALUE` is how many neighbors the lookup returns for each company. The default is 10.
+# Try anything from 3 to 25. Fewer neighbors means only the very closest matches; more means
 # the list reaches further out. Watch the lookup table and the same-industry comparison below:
 # they both change.
 
@@ -72,7 +72,7 @@ print("embeddings:", E.shape)
 OPERATOR_VALUE = 10  # change this, then Runtime → Run all
 DEFAULT_VALUE = 10
 K = int(OPERATOR_VALUE)
-print(f"Showing {K} neighbours per company.")
+print(f"Showing {K} neighbors per company.")
 
 # %% [markdown]
 # ## 4. The lookup: accounts like this one
@@ -108,7 +108,7 @@ prospects.head(10)
 # %% [markdown]
 # ## 6. Judge the matches
 #
-# Read the neighbours for a few companies. A good match is a company a salesperson would
+# Read the neighbors for a few companies. A good match is a company a salesperson would
 # call "like this one": similar business, similar size, similar situation. Record two bad
 # matches and why the embedding put them there.
 
@@ -133,7 +133,7 @@ bad_matches = {
 # ## 7. Compare with keyword search
 #
 # TF-IDF scores words by how distinctive they are. It's the classic keyword baseline.
-# One rough check for both: of each company's 10 neighbours, what share are in the same industry?
+# One rough check for both: of each company's 10 neighbors, what share are in the same industry?
 
 # %%
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -152,7 +152,7 @@ random_rate = float((companies.industry.value_counts(normalize=True) ** 2).sum()
 comparison = pd.Series({
     "embeddings": same_industry_rate(E),
     "TF-IDF keywords": same_industry_rate(T),
-    "random neighbours": random_rate,
+    "random neighbors": random_rate,
 }).round(3)
 comparison
 
@@ -178,7 +178,7 @@ def lookup_works(cid):
 from lib.figures import record
 
 checks = [
-    ("The lookup returns ranked neighbours for any company",
+    ("The lookup returns ranked neighbors for any company",
      all(lookup_works(c) for c in companies.company_id.sample(5, random_state=0))),
     ("You compared embeddings with a keyword baseline", {"embeddings", "TF-IDF keywords"} <= set(comparison.index)),
     ("You explained at least two bad matches",
@@ -192,7 +192,7 @@ if OPERATOR_VALUE == DEFAULT_VALUE:
            cosine_a_b=round(cos(a, b), 3), cosine_a_c=round(cos(a, c), 3), cosine_b_c=round(cos(b, c), 3),
            same_industry_embeddings=float(comparison["embeddings"]),
            same_industry_tfidf=float(comparison["TF-IDF keywords"]),
-           same_industry_random=float(comparison["random neighbours"]), neighbours=K)
+           same_industry_random=float(comparison["random neighbors"]), neighbors=K)
     assert done_when(checks)
 else:
     done_when(checks)

@@ -96,7 +96,7 @@ prospects.head(10)
 # %% [markdown]
 # ## 6. YOUR TURN: judge the matches
 #
-# Read the neighbours for a few companies. A good match is a company a salesperson would
+# Read the neighbors for a few companies. A good match is a company a salesperson would
 # call "like this one": similar business, similar size, similar situation. Record two bad
 # matches and why the embedding put them there.
 
@@ -116,7 +116,7 @@ bad_matches = {
 # ## 7. Compare with keyword search
 #
 # TF-IDF scores words by how distinctive they are. It's the classic keyword baseline.
-# One rough check for both: of each company's 10 neighbours, what share are in the same industry?
+# One rough check for both: of each company's 10 neighbors, what share are in the same industry?
 
 # %%
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -135,7 +135,7 @@ random_rate = float((companies.industry.value_counts(normalize=True) ** 2).sum()
 comparison = pd.Series({
     "embeddings": same_industry_rate(E),
     "TF-IDF keywords": same_industry_rate(T),
-    "random neighbours": random_rate,
+    "random neighbors": random_rate,
 }).round(3)
 comparison
 
@@ -157,7 +157,7 @@ def lookup_works(cid):
             and r.similarity.notna().all() and r.similarity.is_monotonic_decreasing)
 
 _ = done_when([
-    ("The lookup returns ranked neighbours for any company",
+    ("The lookup returns ranked neighbors for any company",
      all(lookup_works(c) for c in companies.company_id.sample(5, random_state=0))),
     ("You compared embeddings with a keyword baseline", {"embeddings", "TF-IDF keywords"} <= set(comparison.index)),
     ("You explained at least two bad matches",

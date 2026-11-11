@@ -245,6 +245,8 @@ if OPERATOR_VALUE == DEFAULT_VALUE:
            claims_checked=len(claims), claims_supported=int(claims.supported.sum()),
            revised_status=check_result["status"], sent_copies=sent_copies,
            model_calls_for_batch=calls_for_batch, full_traces=full_traces,
+           calls_per_lead=round(calls_for_batch / max(1, len(results)), 2),
+           trace_steps_per_lead=int(trace.groupby("lead_id").size().median()) if len(trace) else 0,
            suite_cases=len(suite.rows), suite_passed=sum(r["passed"] for r in suite.rows))
     assert done_when(checks)
 else:

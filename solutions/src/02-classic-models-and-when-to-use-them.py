@@ -173,6 +173,35 @@ print(fair_importance.head(7).round(3).to_string())
 top_five = ["lead_source", "pricing_page_visits", "industry", "job_function", "erp_type"]
 
 # %% [markdown]
+# ## 6b. Is the difference real? Ten splits
+#
+# One test set holds 63 conversions, so a few leads either way moves every number. Rerun the
+# fair comparison on ten random splits (seeds 0 to 9) and look at the means and the spread.
+# The last two columns check two claims from the page: the leaky model on every split, and a
+# boosted tree left on its default settings (no limits), which memorizes small data.
+
+# %%
+def compare_on_split(seed):
+    tr, te = train_test_split(leads, test_size=0.25, random_state=seed, stratify=leads.converted)
+    lr = logistic(fair_numeric).fit(tr[fair_cols], tr.converted)
+    bt = boosted(fair_numeric).fit(tr[fair_cols], tr.converted)
+    lr_leak = logistic(NUMERIC).fit(tr[cols], tr.converted)
+    prep = ColumnTransformer([("num", "passthrough", fair_numeric),
+                              ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), CATEGORICAL)])
+    bt_default = make_pipeline(prep, HistGradientBoostingClassifier(random_state=0)).fit(tr[fair_cols], tr.converted)
+    return {
+        "rules": catch_rate(te.apply(rule_score, axis=1), te.converted),
+        "logistic": catch_rate(lr.predict_proba(te[fair_cols])[:, 1], te.converted),
+        "boosted": catch_rate(bt.predict_proba(te[fair_cols])[:, 1], te.converted),
+        "logistic_with_leak": catch_rate(lr_leak.predict_proba(te[cols])[:, 1], te.converted),
+        "boosted_default_train": catch_rate(bt_default.predict_proba(tr[fair_cols])[:, 1], tr.converted),
+        "boosted_default_test": catch_rate(bt_default.predict_proba(te[fair_cols])[:, 1], te.converted),
+    }
+
+splits = pd.DataFrame([compare_on_split(seed) for seed in range(10)])
+splits.agg(["mean", "std", "min", "max"]).round(3)
+
+# %% [markdown]
 # ## 7. Read the logistic regression
 #
 # Each weight, turned into an odds multiplier. For a number, it's what one typical step up
@@ -203,7 +232,15 @@ for _ in range(runs):
     boost_fair.predict_proba(test[fair_cols])
 seconds_per_prediction = (time.perf_counter() - start) / (runs * len(test))
 cost_per_prediction = seconds_per_prediction * COMPUTE_PRICE_PER_HOUR / 3600
-print(f"{seconds_per_prediction * 1e6:.1f} microseconds per lead")
+print(f"{seconds_per_prediction * 1e6:.1f} microseconds per lead, averaged over scoring the whole test set at once")
+
+# One lead at a time is a different number: every call pays a fixed overhead.
+one = test[fair_cols].iloc[[0]]
+start = time.perf_counter()
+for _ in range(200):
+    boost_fair.predict_proba(one)
+seconds_single = (time.perf_counter() - start) / 200
+print(f"{seconds_single * 1e3:.2f} milliseconds to score a single lead on its own")
 print(f"${cost_per_prediction:.2e} per lead, ${cost_per_prediction * 1_000_000:.4f} per million leads")
 
 # %% [markdown]
@@ -243,6 +280,7 @@ checks = [
 if OPERATOR_VALUE == DEFAULT_VALUE:
     assert done_when(checks)
     from lib.figures import record
+    MOCK_FIGURES = llm.settings()["provider"] == "mock"
 
     def cat(col, value):
         return float(odds[f"cat__{col}_{value}"])
@@ -271,6 +309,10 @@ if OPERATOR_VALUE == DEFAULT_VALUE:
            odds_pricing_page_source=cat("lead_source", "pricing_page"),
            odds_outbound=cat("lead_source", "outbound"),
            odds_pricing_visits_per_sd=float(odds["num__pricing_page_visits"]),
+           llm_prompt_input_tokens=reply.input_tokens if MOCK_FIGURES else None,
+           splits_mean={k: float(v) for k, v in splits.mean().items()},
+           splits_std_points={k: 100 * float(v) for k, v in splits.std().items()},
+           splits_min={k: float(v) for k, v in splits.min().items()},
            tree_split_counts={k: len(v) for k, v in groups.items()},
            tree_split_rates={k: round(float(v.converted.mean()), 4) for k, v in groups.items()})
 else:

@@ -10,11 +10,15 @@
     "recent_funding": 0.0992,
     "webinar_attended": 0.0714
   },
+  "class_weight_ratio": 14.873016,
   "contacts_straddling_split": 33,
+  "conversion_rate": 0.063,
   "converted": 252,
+  "drop_share": 0.24199,
   "extra_duplicate_rows": 120,
   "impossible_employee_counts": 3,
   "negative_page_counts": 2,
+  "nobody_converts_accuracy": 0.937,
   "not_converted": 3748,
   "raw_blanks": {
     "country": 143,
@@ -33,6 +37,20 @@
   "rows_after_dedupe": 4000,
   "score_with_leak": 0.984127,
   "score_without_leak": 0.333333,
+  "ten_splits": {
+    "straddling": {
+      "max": 51.0,
+      "min": 33.0
+    },
+    "with_leak": {
+      "max": 1.0,
+      "min": 0.968254
+    },
+    "without_leak": {
+      "max": 0.444444,
+      "min": 0.31746
+    }
+  },
   "two_plus_meetings_converted": 230,
   "two_plus_meetings_leads": 230,
   "zero_meetings_converted": 0,

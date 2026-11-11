@@ -20,19 +20,22 @@ print(f"lead_source has {messy.lead_source.nunique()} different spellings")
 # ## 2. Personal data first
 #
 # The export carries contact names and emails. A model doesn't need either. The email is still
-# useful for one job, spotting the same person entered twice, so swap it for a salted hash
-# (a stand-in that matches itself but can't be read back), then drop both raw columns.
+# useful for one job, spotting the same person entered twice, so swap it for a keyed hash
+# (HMAC: a stand-in that's the same every time for the same email, so duplicates still match,
+# but can't be read back without the secret key), then drop both raw columns. A hashed email is
+# still personal data under GDPR: hashing cuts the exposure, it doesn't remove the obligation.
 # Do this before the data goes anywhere else, including any AI tool.
 
 # %%
 import hashlib
+import hmac
 
-SALT = "change-me-and-keep-it-out-of-git"
+HASH_KEY = b"change-me-and-keep-it-out-of-git"  # a secret: in real use, load it from .env
 messy["contact_key"] = messy.contact_email.str.strip().str.lower().map(
-    lambda e: hashlib.sha256((SALT + e).encode()).hexdigest()[:16]
+    lambda e: hmac.new(HASH_KEY, e.encode(), hashlib.sha256).hexdigest()[:16]
 )
 messy = messy.drop(columns=["contact_name", "contact_email"])
-decisions.append("pii: replaced contact_email with a salted hash (contact_key) for dedupe; dropped contact_name and contact_email")
+decisions.append("pii: replaced contact_email with a keyed hash (HMAC, contact_key) for dedupe; dropped contact_name and contact_email")
 
 # %% [markdown]
 # ## 3. Dates in three formats

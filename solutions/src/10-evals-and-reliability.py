@@ -81,12 +81,33 @@ print(f"prompt {OPERATOR_VALUE}: suite pass rate {broken['pass_rate']:.0%}, {'PA
 # %% [markdown]
 # ## 4. Is the grader right? Check it against people
 #
-# The code grader runs the rules from the taxonomy. Score all 40 labelled outputs with it,
-# then compare with the human verdicts.
+# The code grader runs the rules from the taxonomy. Compare its verdicts with the person's.
+#
+# Split the labels first. If you tune the grader on the same outputs you measure it on, its
+# agreement is in-sample: it tells you how well it fits those 40, not how it will do on the
+# next 40. So: half the labels to develop on, half held out to measure on, decided before you
+# look at a single disagreement. The rule here: within each kind of failure (and the passes),
+# take the outputs in id order and alternate, development then held-out.
+#
+# One more caveat: every label came from one person. Kappa below is agreement with that one
+# labeler, not agreement between people. A second labeler on a subset tells you how much
+# the labels themselves can be trusted.
 
 # %%
-def grade_all(grader, **kw):
-    return [grader(i["company"], i["output"], **kw)["verdict"] == "pass" for i in labelled]
+def grade_all(grader, items=None, **kw):
+    return [grader(i["company"], i["output"], **kw)["verdict"] == "pass" for i in (items or labelled)]
+
+by_mode = {}
+for i in labelled:
+    by_mode.setdefault(i["human"]["failure_mode"], []).append(i)
+dev_ids, held_ids = set(), set()
+for mode, items in by_mode.items():
+    for k, i in enumerate(sorted(items, key=lambda x: x["id"])):
+        (dev_ids if k % 2 == 0 else held_ids).add(i["id"])
+dev = [i for i in labelled if i["id"] in dev_ids]
+held = [i for i in labelled if i["id"] in held_ids]
+human = lambda items: [i["human"]["verdict"] == "pass" for i in items]
+print(f"development: {len(dev)} outputs ({sum(human(dev))} pass), held out: {len(held)} ({sum(human(held))} pass)")
 
 
 def model_grade_all(**kw):
@@ -103,25 +124,37 @@ def model_grade_all(**kw):
         verdicts.append(v)
     return verdicts, failures
 
-code_v1 = agreement(human_pass, grade_all(code_grade, version="v1"))
-print(f"code grader v1: {code_v1['accuracy']:.1%} agreement, kappa {code_v1['kappa']:.2f}")
-print(f"  too easy (person failed it, grader passed): {code_v1['grader_too_easy']}")
-print(f"  too hard (person passed it, grader failed): {code_v1['grader_too_hard']}")
-
-# %%
-for i, g in zip(labelled, grade_all(code_grade, version="v1")):
+dev_v1 = agreement(human(dev), grade_all(code_grade, dev, version="v1"))
+print(f"code grader v1 on the development half: {dev_v1['accuracy']:.1%} agreement, kappa {dev_v1['kappa']:.2f}")
+for i, g in zip(dev, grade_all(code_grade, dev, version="v1")):
     if g != (i["human"]["verdict"] == "pass"):
-        print(f"{i['id']}  person: {i['human']['verdict']:<4}  grader: {'pass' if g else 'fail'}  | {i['human']['reason']}")
+        print(f"  {i['id']}  person: {i['human']['verdict']:<4}  grader: {'pass' if g else 'fail'}  | {i['human']['reason']}")
 
 # %% [markdown]
-# Two misses are things rules can't see (a vague opener with no stock phrase, a pain point
-# that's wrong but plausible). That's what a model grader is for. Three are the grader being
-# stricter than a careful reviewer. One of those is fixable: evidence stitched from two exact
-# phrases with "..." is faithful, and v2 of the rule accepts it.
+# Read the development disagreements only. One is fixable: evidence stitched from two exact
+# phrases with "..." is faithful, and v2 of the rule accepts it. The other is the person using
+# judgment the rules don't have. Make the fix, check it on the development half, then measure
+# both versions once on the held-out half you haven't looked at.
 
 # %%
+dev_v2 = agreement(human(dev), grade_all(code_grade, dev, version="v2"))
+held_v1 = agreement(human(held), grade_all(code_grade, held, version="v1"))
+held_v2 = agreement(human(held), grade_all(code_grade, held, version="v2"))
+print(f"development: v1 {dev_v1['accuracy']:.0%} -> v2 {dev_v2['accuracy']:.0%}")
+print(f"held out:    v1 {held_v1['accuracy']:.0%} (kappa {held_v1['kappa']:.2f}) -> v2 {held_v2['accuracy']:.0%} (kappa {held_v2['kappa']:.2f})")
+print(f"  v2 on held out: too easy {held_v2['grader_too_easy']}, too hard {held_v2['grader_too_hard']}")
+for i, g in zip(held, grade_all(code_grade, held, version="v2")):
+    if g != (i["human"]["verdict"] == "pass"):
+        print(f"  {i['id']}  person: {i['human']['verdict']:<4}  grader: {'pass' if g else 'fail'}  | {i['human']['reason']}")
+
+# %% [markdown]
+# The held-out number is the one to quote. For comparison, the same graders on all 40 at once,
+# which is in-sample because v2's fix came from looking at these outputs:
+
+# %%
+code_v1 = agreement(human_pass, grade_all(code_grade, version="v1"))
 code_v2 = agreement(human_pass, grade_all(code_grade, version="v2"))
-print(f"code grader v2: {code_v2['accuracy']:.1%} agreement, kappa {code_v2['kappa']:.2f}")
+print(f"all 40 (in-sample): v1 {code_v1['accuracy']:.1%} kappa {code_v1['kappa']:.2f}, v2 {code_v2['accuracy']:.1%} kappa {code_v2['kappa']:.2f}")
 
 # %% [markdown]
 # Now the model grader, with the vague rubric and the specific one. **In mock mode this is
@@ -202,6 +235,16 @@ if OPERATOR_VALUE == OPERATOR_DEFAULT:
            code_grader_v1_accuracy=code_v1["accuracy"], code_grader_v1_kappa=code_v1["kappa"],
            code_grader_v1_too_easy=code_v1["grader_too_easy"], code_grader_v1_too_hard=code_v1["grader_too_hard"],
            code_grader_v2_accuracy=code_v2["accuracy"], code_grader_v2_kappa=code_v2["kappa"],
+           code_grader_v1_passed=sum(grade_all(code_grade, version="v1")),
+           split_dev_n=len(dev), split_held_n=len(held), split_held_pass=sum(human(held)),
+           code_grader_dev_v1_accuracy=dev_v1["accuracy"], code_grader_dev_v2_accuracy=dev_v2["accuracy"],
+           code_grader_held_v1_accuracy=held_v1["accuracy"], code_grader_held_v1_kappa=held_v1["kappa"],
+           code_grader_held_v2_accuracy=held_v2["accuracy"], code_grader_held_v2_kappa=held_v2["kappa"],
+           code_grader_held_v2_too_easy=held_v2["grader_too_easy"], code_grader_held_v2_too_hard=held_v2["grader_too_hard"],
+           gate_blocked_planted_links=sum(1 for i in link_items if i in blocked),
+           gate_miss_rate=queued_human_fail / (len(labelled) - sum(human_pass)),
+           suite_checks_skipped={k: v.get("checks_skipped") for k, v in report["suites"].items() if "skipped" not in v},
+           model_grader_calls_two_rubrics=2 * len(labelled),
            model_grader_vague_accuracy=model_results["vague rubric"]["accuracy"],
            model_grader_vague_kappa=model_results["vague rubric"]["kappa"],
            model_grader_specific_accuracy=model_results["specific rubric"]["accuracy"],

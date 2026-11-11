@@ -188,7 +188,7 @@ table = pd.DataFrame([
     for size, m in [("small", SMALL_MODEL), ("large", LARGE_MODEL)]
 ])
 if MOCK:
-    table["note"] = table["note"].where(table["note"] != "", "mock: not real model behaviour")
+    table["note"] = table["note"].where(table["note"] != "", "mock: not real model behavior")
 table
 
 # %%

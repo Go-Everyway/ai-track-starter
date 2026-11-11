@@ -5,7 +5,7 @@
   "cosine_b_c": 0.141,
   "customers": 40,
   "mode": "mock",
-  "neighbours": 10,
+  "neighbors": 10,
   "same_industry_embeddings": 0.392,
   "same_industry_random": 0.115,
   "same_industry_tfidf": 0.795
