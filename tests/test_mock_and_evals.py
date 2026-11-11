@@ -68,7 +68,7 @@ class EvalsTests(unittest.TestCase):
                 return json.dumps({"answer": "it ships nightly", "citations": ["p1", "p2"]})
 
             res = run_suite(p, step)
-            self.assertEqual([r["passed"] for r in res.rows], [True, False, False, True])
+            self.assertEqual([r["passed"] for r in res.rows], [True, False, True, False])
             self.assertAlmostEqual(res.pass_rate, 2 / 4)
             self.assertEqual(len(res.failures()[0][1]), 2)  # case b: bad citation and too long
             self.assertIn("ValueError", res.failures()[1][1][0])
