@@ -1,13 +1,20 @@
-"""Write the per-module notebook scaffolds in notebooks/.
+"""Build every notebook in notebooks/ and solutions/.
 
-Each notebook gets the same two setup cells (Colab bootstrap, then repo-root discovery)
-and a starter cell that loads the data that module uses. The guided build for each
-module is added when that module is written; until then the notebook says so.
+Modules are authored as plain Python cell scripts, which are easier to write and review
+than notebook JSON:
+
+    notebooks/src/NN-*.py   the learner's notebook, with the build left as marked gaps
+    solutions/src/NN-*.py   the same notebook, completed, ending in its done-when checks
+
+Cells are separated by `# %%` lines; `# %% [markdown]` starts a markdown cell whose lines
+are written as `# text`. Every built notebook gets the same title, Colab and setup cells
+first. A module with no source yet gets a short scaffold that just loads its data.
 
     python tools/make_notebooks.py
 """
 
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -64,32 +71,73 @@ def cell(kind, src, cid):
     return c
 
 
-def notebook(num, title, starter):
+def parse_cells(text: str):
+    """Split a `# %%` cell script into (kind, source) pairs."""
+    cells, kind, lines = [], None, []
+
+    def flush():
+        src = "\n".join(lines).strip("\n")
+        if kind and src:
+            if kind == "markdown":
+                src = "\n".join(re.sub(r"^# ?", "", l) for l in src.splitlines())
+            cells.append((kind, src))
+
+    for line in text.splitlines():
+        m = re.match(r"^# %%( \[markdown\])?", line)
+        if m:
+            flush()
+            kind, lines = ("markdown" if m.group(1) else "code"), []
+        elif kind:
+            lines.append(line)
+    flush()
+    return cells
+
+
+def notebook(num, title, body, intro):
+    cells = [
+        cell("markdown", f"# Module {int(num)}: {title}\n\n{intro}", f"m{num}-intro"),
+        cell("code", COLAB, f"m{num}-colab"),
+        cell("code", SETUP, f"m{num}-setup"),
+    ]
+    cells += [cell(kind, src, f"m{num}-{i:02d}") for i, (kind, src) in enumerate(body)]
     return {
         "nbformat": 4, "nbformat_minor": 5,
         "metadata": {"kernelspec": {"name": "python3", "display_name": "Python 3", "language": "python"},
                      "language_info": {"name": "python"}},
-        "cells": [
-            cell("markdown", f"# Module {int(num)}: {title}\n\nStarter notebook for the AI Track. "
-                             "Run the cells top to bottom. All data in this kit is synthetic.\n\n"
-                             "The guided build for this module is added when the module is published; "
-                             "until then this notebook loads the data so you can explore it.", f"m{num}-intro"),
-            cell("code", COLAB, f"m{num}-colab"),
-            cell("code", SETUP, f"m{num}-setup"),
-            cell("markdown", "## Start here", f"m{num}-start-md"),
-            cell("code", starter, f"m{num}-start"),
-        ],
+        "cells": cells,
     }
 
 
+def slug_for(num, title):
+    return f"{num}-" + re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+
+
+SCAFFOLD_INTRO = ("Starter notebook for the AI Track. Run the cells top to bottom. All data in this kit is synthetic.\n\n"
+                  "The guided build for this module is added when the module is published; "
+                  "until then this notebook loads the data so you can explore it.")
+LEARNER_INTRO = ("Run the cells top to bottom. Cells marked **YOUR TURN** are the build: they run as they are, "
+                 "but they won't pass the done-when checks until you fill them in. All data in this kit is synthetic.")
+SOLUTION_INTRO = ("The worked solution. Try the build in `notebooks/` first; getting stuck for a while teaches more "
+                  "than reading this. The last cells check every done-when criterion.")
+
+
 def main():
-    out = ROOT / "notebooks"
-    out.mkdir(exist_ok=True)
+    built = 0
     for num, title, starter in MODULES:
-        slug = title.lower().replace(":", "").replace(",", "").replace(".", "").replace(" ", "-")
-        path = out / f"{num}-{slug}.ipynb"
-        path.write_text(json.dumps(notebook(num, title, starter), indent=1) + "\n", encoding="utf-8")
-    print(f"wrote {len(MODULES)} notebooks to {out}")
+        slug = slug_for(num, title)
+        for kind, intro in [("notebooks", LEARNER_INTRO), ("solutions", SOLUTION_INTRO)]:
+            src = ROOT / kind / "src" / f"{slug}.py"
+            out = ROOT / kind / f"{slug}.ipynb"
+            if src.exists():
+                body = parse_cells(src.read_text(encoding="utf-8"))
+            elif kind == "notebooks":
+                body, intro = [("markdown", "## Start here"), ("code", starter)], SCAFFOLD_INTRO
+            else:
+                continue
+            out.parent.mkdir(exist_ok=True)
+            out.write_text(json.dumps(notebook(num, title, body, intro), indent=1) + "\n", encoding="utf-8")
+            built += 1
+    print(f"built {built} notebooks")
 
 
 if __name__ == "__main__":
