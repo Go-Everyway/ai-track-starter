@@ -1,0 +1,6 @@
+# Local extras: Jupyter to open the notebooks, nbclient to run them headless (tools/run_notebooks.py).
+-r requirements.txt
+jupyter>=1.0
+nbclient>=0.10
+nbformat>=5.10
+ipykernel>=6.29

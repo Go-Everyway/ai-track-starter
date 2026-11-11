@@ -1,0 +1,7 @@
+# Core packages for every notebook. Ranges, not pins, so Colab's preinstalled versions work.
+pandas>=2.2,<4
+numpy>=1.26,<3
+scikit-learn>=1.5,<2
+matplotlib>=3.8,<4
+openai>=1.40,<4
+python-dotenv>=1.0,<2
