@@ -16,9 +16,11 @@ worked default is OpenRouter. Settings come from environment variables (or a .en
     LLM_PRICES            optional JSON: {"model-id": [input_usd_per_million, output_usd_per_million]}
                           used only when the provider doesn't report cost itself.
 
-LLM_PROVIDER=mock needs no key and costs nothing. Chat replies are canned and
-embeddings are word-hash vectors, which is enough to run every notebook end to end
-and see how the pieces fit, but not to judge quality.
+LLM_PROVIDER=mock needs no key and costs nothing. Chat replies are canned, embeddings
+are word-hash vectors, a request with a JSON schema gets a valid (but meaningless)
+instance of that schema, and a request with tools gets a call to the first tool with
+valid arguments. That's enough to run every notebook end to end and see how the pieces
+fit, but not to judge quality.
 """
 
 from __future__ import annotations
@@ -57,6 +59,8 @@ class Reply:
     cost_usd: float | None  # None when neither the provider nor LLM_PRICES gives a price
     latency_s: float
     raw: object = field(default=None, repr=False)
+    # Tool calls the model asked for: [{"id", "name", "arguments": dict}]. Empty for plain replies.
+    tool_calls: list = field(default_factory=list)
 
 
 def _settings() -> dict:
@@ -133,6 +137,77 @@ def _mock_vector(text: str, dims: int = 256) -> list[float]:
     return [x / n for x in v]
 
 
+def _content_text(m: dict) -> str:
+    c = m.get("content")
+    return c if isinstance(c, str) else json.dumps(c) if c else ""
+
+
+def _synth(schema: dict, words: list[str], depth: int = 0):
+    """A small, valid, deterministic instance of a JSON schema (the subset providers accept)."""
+    if not isinstance(schema, dict) or depth > 6:
+        return None
+    if "const" in schema:
+        return schema["const"]
+    if schema.get("enum"):
+        return schema["enum"][0]
+    for key in ("anyOf", "oneOf", "allOf"):
+        if schema.get(key):
+            return _synth(schema[key][0], words, depth + 1)
+    t = schema.get("type")
+    if isinstance(t, list):
+        t = next((x for x in t if x != "null"), "null")
+    if t == "object" or "properties" in schema:
+        props = schema.get("properties", {})
+        keys = schema.get("required") or list(props)
+        return {k: _synth(props.get(k, {}), words, depth + 1) for k in keys}
+    if t == "array":
+        n = max(1, schema.get("minItems", 1))
+        return [_synth(schema.get("items", {}), words, depth + 1) for _ in range(n)]
+    if t == "integer":
+        return int(schema.get("minimum", 0))
+    if t == "number":
+        return float(schema.get("minimum", 0))
+    if t == "boolean":
+        return False
+    if t == "null":
+        return None
+    picked = " ".join(words[depth: depth + 4]) or "text"
+    return f"mock {picked}"
+
+
+def _mock_reply(messages: list[dict], params: dict) -> tuple[str, list]:
+    last_user = next((_content_text(m) for m in reversed(messages) if m.get("role") == "user"), "")
+    words = re.findall(r"[A-Za-z][A-Za-z'-]+", last_user)[:12]
+    tools = params.get("tools") or []
+    if tools and messages and messages[-1].get("role") != "tool":
+        choice = params.get("tool_choice")
+        name = choice.get("function", {}).get("name") if isinstance(choice, dict) else None
+        tool = next((t for t in tools if t["function"]["name"] == name), tools[0])["function"]
+        return "", [{"id": "mock_call_1", "name": tool["name"], "arguments": _synth(tool.get("parameters", {}), words) or {}}]
+    rf = params.get("response_format") or {}
+    if rf.get("type") == "json_schema":
+        return json.dumps(_synth(rf["json_schema"]["schema"], words)), []
+    if rf.get("type") == "json_object":
+        return "{}", []
+    return f"[mock reply] {last_user[:80]}", []
+
+
+def assistant_message(reply: Reply) -> dict:
+    """The assistant turn to append to `messages` after a reply, tool calls included."""
+    msg = {"role": "assistant", "content": reply.text or None}
+    if reply.tool_calls:
+        msg["tool_calls"] = [{"id": c["id"], "type": "function",
+                              "function": {"name": c["name"], "arguments": json.dumps(c["arguments"])}}
+                             for c in reply.tool_calls]
+    return msg
+
+
+def tool_result_message(call_id: str, content) -> dict:
+    """The message that hands a tool's result back to the model."""
+    return {"role": "tool", "tool_call_id": call_id,
+            "content": content if isinstance(content, str) else json.dumps(content)}
+
+
 # ---------------------------------------------------------------- public API
 
 def _client(cfg: dict):
@@ -157,10 +232,10 @@ def chat(messages, *, model: str | None = None, **params) -> Reply:
     t0 = time.perf_counter()
 
     if cfg["provider"] == "mock":
-        last = messages[-1]["content"] if messages else ""
-        text = f"[mock reply] {last[:80]}"
-        tin = sum(_tokens_estimate(m["content"]) for m in messages)
-        reply = Reply(text, model or "mock", tin, _tokens_estimate(text), 0.0, time.perf_counter() - t0)
+        text, calls = _mock_reply(messages, params)
+        tin = sum(_tokens_estimate(_content_text(m)) for m in messages)
+        tout = _tokens_estimate(text or json.dumps([c["arguments"] for c in calls]))
+        reply = Reply(text, model or "mock", tin, tout, 0.0, time.perf_counter() - t0, tool_calls=calls)
     else:
         if not model:
             raise RuntimeError("Set LLM_MODEL to a chat model id your provider lists.")
@@ -171,9 +246,12 @@ def chat(messages, *, model: str | None = None, **params) -> Reply:
         u = resp.usage
         tin, tout = (u.prompt_tokens, u.completion_tokens) if u else (0, 0)
         reported = (getattr(u, "model_extra", None) or {}).get("cost") if u else None
+        msg = resp.choices[0].message
+        calls = [{"id": c.id, "name": c.function.name, "arguments": json.loads(c.function.arguments or "{}")}
+                 for c in (msg.tool_calls or [])]
         reply = Reply(
-            resp.choices[0].message.content or "", resp.model or model, tin, tout,
-            _price(cfg, model, tin, tout, reported), time.perf_counter() - t0, resp,
+            msg.content or "", resp.model or model, tin, tout,
+            _price(cfg, model, tin, tout, reported), time.perf_counter() - t0, resp, calls,
         )
 
     _log({"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), "kind": "chat",
